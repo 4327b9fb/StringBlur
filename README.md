@@ -1,20 +1,21 @@
 # StringBlur
 
-最新版本：`2.1.0`
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-StringBlur 是一个 Android Gradle 插件，用于在构建阶段对 class 中的字符串常量进行加密，并在运行时自动解密。
+Latest version: `2.1.0`
 
-## 安装
+StringBlur is an Android Gradle plugin that encrypts string constants in class files during the build and decrypts them automatically at runtime.
 
-### plugins DSL / Version Catalog
+## Installation
 
-在 `settings.gradle(.kts)` 中配置插件仓库：
+### Plugins DSL / Version Catalog
+
+Configure the plugin repository in `settings.gradle(.kts)`:
 
 ```groovy
-// settings.gradle
 pluginManagement {
     repositories {
-        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/"}
+        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/" }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -22,66 +23,34 @@ pluginManagement {
 }
 ```
 
-```kotlin
-// settings.gradle.kts
-pluginManagement {
-    repositories {
-        maven { url = uri("https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/") }
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-```
-
-在 `gradle/libs.versions.toml` 中声明插件：
+Declare and apply the plugin with a version catalog:
 
 ```toml
+# gradle/libs.versions.toml
 [plugins]
-stringblur = { id = "stringblur", version.ref = "2.1.0" }
-```
-
-根目录 `build.gradle(.kts)`：
-
-```groovy
-// build.gradle
-plugins {
-    alias(libs.plugins.stringblur) apply false
-}
+stringblur = { id = "stringblur", version = "2.1.0" }
 ```
 
 ```kotlin
-// build.gradle.kts
+// Root build.gradle.kts
 plugins {
     alias(libs.plugins.stringblur) apply false
 }
-```
 
-app 或 library 模块 `build.gradle(.kts)`：
-
-```groovy
-// build.gradle
+// Application or library module build.gradle.kts
 plugins {
     alias(libs.plugins.stringblur)
 }
 ```
 
-```kotlin
-// build.gradle.kts
-plugins {
-    alias(libs.plugins.stringblur)
-}
-```
+The equivalent Groovy DSL uses `alias(libs.plugins.stringblur)` in `build.gradle`.
 
-### buildscript
-
-也可以使用传统 `buildscript` 方式：
+### Legacy `buildscript`
 
 ```groovy
-// build.gradle
 buildscript {
     repositories {
-        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/"}
+        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/" }
         google()
         mavenCentral()
     }
@@ -89,67 +58,14 @@ buildscript {
         classpath 'com.android.string.plugin:stringblur:2.1.0'
     }
 }
-```
 
-```kotlin
-// build.gradle.kts
-buildscript {
-    repositories {
-        maven { url = uri("https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/") }
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.string.plugin:stringblur:2.1.0")
-    }
-}
-```
-
-模块 `build.gradle(.kts)`：
-
-```groovy
-// build.gradle
+// Module build.gradle
 apply plugin: 'stringblur'
 ```
 
-```kotlin
-// build.gradle.kts
-apply(plugin = "stringblur")
-```
+For Kotlin DSL, use `classpath("com.android.string.plugin:stringblur:2.1.0")` and `apply(plugin = "stringblur")`.
 
-## 配置
-
-### Groovy DSL (build.gradle)
-
-```groovy
-import com.android.string.plugin.mode.BytesMode
-import com.android.string.plugin.mode.Mode
-import com.android.string.plugin.mode.SelectionStrategy
-
-stringblur {
-    key = "Hello World"
-    enable = true
-
-    whiteList = ['com.xxx.xxx.BuildConfig']
-    encodePackages = ['com.xxx.xxx']
-
-    modes = [Mode.XOR, Mode.SHIFT, Mode.XOR_SHIFT]
-    bytesMode = BytesMode.STRING
-    minLength = 3
-    enableWhenDebug = false
-
-    // 智能算法选择
-    selectionStrategy = SelectionStrategy.SMART
-    performanceWeight = 0.6
-    securityWeight = 0.4
-    
-    // 增量编译
-    incremental = true
-    cacheDir = file("build/string-blur-cache")
-}
-```
-
-### Kotlin DSL (build.gradle.kts)
+## Configuration
 
 ```kotlin
 import com.android.string.plugin.mode.BytesMode
@@ -157,270 +73,95 @@ import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.SelectionStrategy
 
 stringblur {
-    key = "Hello World"
-    enable = true
-
-    whiteList = listOf("com.xxx.xxx.BuildConfig")
-    encodePackages = listOf("com.xxx.xxx")
-
-    modes = listOf(Mode.XOR, Mode.SHIFT, Mode.XOR_SHIFT)
-    bytesMode = BytesMode.STRING
-    minLength = 3
-    enableWhenDebug = false
-    
-    // 智能算法选择
-    selectionStrategy = SelectionStrategy.SMART
-    performanceWeight = 0.6
-    securityWeight = 0.4
-    
-    // 增量编译
-    incremental = true
-    cacheDir = file("build/string-blur-cache")
-}
-```
-
-### 现代Kotlin DSL完整配置示例
-
-```kotlin
-// build.gradle.kts
-plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.stringblur)
-}
-
-android {
-    // ... android配置
-}
-
-stringblur {
-    enable = true
     key = "my-project-key-2024"
+    enable = true
     minLength = 3
     enableWhenDebug = false
-    
-    // 加密算法配置
-    modes = listOf(
-        Mode.XOR_SIMD,    // SIMD优化的批量XOR
-        Mode.FAST_ROT,    // 快速位旋转算法
-        Mode.REVERSE      // 字节反转
-    )
+
+    // Limit processing to these packages. Omit for all classes.
+    encodePackages = listOf("com.example")
+    whiteList = listOf("BuildConfig", "R", "R2")
+
+    modes = listOf(Mode.XOR_SIMD, Mode.FAST_ROT, Mode.REVERSE)
     bytesMode = BytesMode.RANDOM
-    
-    // 智能算法选择配置
+
     selectionStrategy = SelectionStrategy.SMART
-    performanceWeight = 0.7  // 70%性能权重
-    securityWeight = 0.3     // 30%安全权重
-    
-    // 增量编译配置
+    performanceWeight = 0.7
+    securityWeight = 0.3
+
     incremental = true
     cacheDir = file("build/string-blur-cache")
-    
-    // 白名单配置
-    whiteList = listOf(
-        "BuildConfig",
-        "R",
-        "R2",
-        "com.android.string.plugin"
-    )
 }
 ```
 
-## 配置项对照表
+Groovy DSL accepts the same properties. Use lists such as `modes = [Mode.XOR, Mode.SHIFT]` and `whiteList = ['BuildConfig']`.
 
-### Groovy DSL vs Kotlin DSL
+| Option | Description | Default |
+| --- | --- | --- |
+| `key` | Encryption key; accepts a string or a random integer length, for example `key 16`. | — |
+| `enable` | Enables string encryption. | `false` |
+| `whiteList` | Class-name or package-prefix exclusions. | — |
+| `encodePackages` | Processing scope. `null` processes all classes; an empty list processes only the current `applicationId`/`namespace`; non-empty lists add package prefixes. | — |
+| `modes` | Encryption modes. A mode is selected per string. | `[Mode.DEFAULT]` |
+| `bytesMode` | Encrypted-data representation. | `BytesMode.STRING` |
+| `minLength` | Strings shorter than this are skipped. | `0` |
+| `enableWhenDebug` | Also encrypt debug builds. | `false` |
+| `selectionStrategy` | Mode-selection strategy. | `SelectionStrategy.RANDOM` |
+| `performanceWeight` / `securityWeight` | SMART-strategy weights from 0.0 to 1.0. | `0.5` / `0.5` |
+| `incremental` | Process only changed files and strings when possible. | `true` |
+| `cacheDir` | Incremental-build cache directory. | `build/string-blur-cache` |
 
-| 配置项 | Groovy DSL | Kotlin DSL |
-|-------|-----------|-----------|
-| 加密密钥 | `key = "string"` | `key = "string"` |
-| 启用插件 | `enable = true` | `enable = true` |
-| 加密算法 | `modes = [Mode.XOR]` | `modes = listOf(Mode.XOR)` |
-| Bytes模式 | `bytesMode = BytesMode.STRING` | `bytesMode = BytesMode.STRING` |
-| 最小长度 | `minLength = 3` | `minLength = 3` |
-| Debug模式 | `enableWhenDebug = false` | `enableWhenDebug = false` |
-| 选择策略 | `selectionStrategy = SelectionStrategy.SMART` | `selectionStrategy = SelectionStrategy.SMART` |
-| 性能权重 | `performanceWeight = 0.6` | `performanceWeight = 0.6` |
-| 安全权重 | `securityWeight = 0.4` | `securityWeight = 0.4` |
-| 增量编译 | `incremental = true` | `incremental = true` |
-| 缓存目录 | `cacheDir = file("xxx")` | `cacheDir = file("xxx")` |
-| 白名单 | `whiteList = ["xxx"]` | `whiteList = listOf("xxx")` |
+## Encryption modes
 
-### 详细说明
+- `Mode.DEFAULT`: key-based byte addition/subtraction.
+- `Mode.XOR`: key-based XOR.
+- `Mode.REVERSE`: reverses byte order.
+- `Mode.SHIFT`: key-based byte shifting.
+- `Mode.XOR_SHIFT`: combines XOR and SHIFT.
+- `Mode.XOR_SIMD`: SIMD-optimized batch XOR, recommended for performance-sensitive code.
+- `Mode.FAST_ROT`: fast bit-rotation algorithm for frequent short strings.
 
-## AGP 兼容性
+Encrypted data can be stored as a string (`BytesMode.STRING`), a byte array (`BytesMode.BYTES`), or randomly as either representation (`BytesMode.RANDOM`).
 
-| AGP 版本 | 最低 Gradle 版本 | 最低 JDK 版本 | 状态 |
-|----------|-----------------|--------------|------|
-| 8.x | 8.x | 17 | ✅ 完全支持 |
-| 7.x | 7.x | 11 | ✅ 完全支持 |
-| 6.x | 6.7+ | 11 | ✅ 完全支持 |
-| 5.x | 5.6.4+ | 8 | ⚠️ 部分支持 |
+## Smart mode selection
 
-> **注意**：推荐使用 AGP 7.x 及以上版本以获得最佳体验。
+`SelectionStrategy.RANDOM` preserves the original random behavior. The optional `SMART`, `PERFORMANCE`, and `SECURITY` strategies select modes based on string characteristics or the desired priority.
 
-### 兼容性说明
+| String characteristic | Preferred mode |
+| --- | --- |
+| Short strings (1–8 characters) | `FAST_ROT` |
+| Medium strings (9–50 characters) | `XOR_SIMD` |
+| Long strings (over 200 characters) | `REVERSE` |
+| Sensitive content | `XOR_SHIFT` |
+| Mostly numeric or binary data | `FAST_ROT` or `XOR_SIMD` |
 
-- **AGP 8.x**：支持所有新特性，包括最新的增量编译优化
-- **AGP 7.x**：完全支持所有功能
-- **AGP 6.x**：完全支持所有功能
-- **AGP 5.x**：基础功能可用，部分高级特性可能不可用
+## Encryption report
 
-### 版本建议
-
-| 项目类型 | 推荐 AGP 版本 | 推荐 Gradle 版本 |
-|---------|--------------|----------------|
-| 新项目 | 8.x | 8.x |
-| 维护中项目 | 7.x | 7.x |
-| 旧项目 | 6.x | 6.7+ |
-
-- `key`：加密密钥。支持字符串，也支持整数随机长度，例如 `key 16`。
-- `enable`：是否开启字符串加密，默认 `false`。
-- `whiteList`：类名或包名前缀白名单，匹配到的 class 不处理。
-- `encodePackages`：加密范围。`null` 表示处理全部 class；空列表表示只处理当前 applicationId/namespace；非空列表会在当前 applicationId/namespace 基础上追加包名前缀。
-- `modes`：加密方式列表。每个字符串会从列表中随机选择一种方式，默认 `[Mode.DEFAULT]`。
-- `bytesMode`：密文承载方式，默认 `BytesMode.STRING`。
-- `minLength`：最小加密长度，长度小于该值的字符串会跳过，默认 `0`。
-- `enableWhenDebug`：debug构建时是否启用加密，默认 `false`。设置为 `true` 时debug构建也会执行加密。
-- `selectionStrategy`：算法选择策略，默认 `SelectionStrategy.RANDOM` 保持原有随机行为。可设置为 `SMART` 启用智能选择。
-- `performanceWeight`：性能权重 (0.0-1.0)，仅在 `SelectionStrategy.SMART` 时生效，默认 `0.5`。
-- `securityWeight`：安全权重 (0.0-1.0)，仅在 `SelectionStrategy.SMART` 时生效，默认 `0.5`。
-- `incremental`：启用增量编译优化，默认 `true`。开启后只处理变更的文件和字符串。
-- `cacheDir`：缓存目录，默认使用 `build/string-blur-cache`。
-
-## 加密方式
-
-- `Mode.DEFAULT`：按 key 对字节做加减变换。
-- `Mode.XOR`：按 key 对字节做异或变换。
-- `Mode.REVERSE`：反转字节顺序。
-- `Mode.SHIFT`：按 key 低位对字节做位移变换。
-- `Mode.XOR_SHIFT`：组合 XOR 与 SHIFT 变换。
-- `Mode.XOR_SIMD`：SIMD优化的批量XOR加密，性能提升3-5倍，推荐用于性能敏感场景。
-- `Mode.FAST_ROT`：基于位旋转的快速加密算法，适合高频小字符串加密场景。
-
-## 密文承载方式
-
-- `BytesMode.STRING`：密文写成字符串常量。
-- `BytesMode.BYTES`：密文写成 byte array。
-- `BytesMode.RANDOM`：每个字符串随机选择 `STRING` 或 `BYTES`。
-
-## 加密报告
-
-开启插件后会按 variant 生成报告文件：
+Each variant produces a report at:
 
 ```text
 build/reports/stringblur/{variant}.txt
 ```
 
-报告内容包括：
-- 📊 **执行统计**：扫描类数量、加密字符串数量、跳过数量
-- ⏱️ **性能分析**：执行时间、加密速率、性能评级
-- 📈 **算法分布**：各加密算法使用占比和数量
-- 📏 **长度分布**：按字符串长度分类的统计
-- 🎯 **优化建议**：基于统计数据的性能建议
+The report includes scan and encryption counts, duration and throughput, algorithm and string-length distributions, plus optimization suggestions. Its events are `SCAN`, `SKIP`, `ENCRYPT`, and `IGNORE`.
 
-### 📄 **报告示例**
+## AGP compatibility
 
-```text
-StringBlur Performance Report
-Generated: 2026-06-19 14:30:25
-Variant: release
-Config: XOR_SIMD,FAST_ROT,REVERSE (STRING mode)
-========================================
+| AGP | Minimum Gradle | Minimum JDK | Status |
+| --- | --- | --- | --- |
+| 8.x | 8.x | 17 | Fully supported |
+| 7.x | 7.x | 11 | Fully supported |
+| 6.x | 6.7+ | 11 | Fully supported |
+| 5.x | 5.6.4+ | 8 | Partial support |
 
-Events:
-SCAN class=com/example/MainActivity
-ENCRYPT class=com/example/MainActivity method=initString mode=XOR_SIMD bytesMode=STRING length=12
-SCAN class=com/example/ApiService  
-ENCRYPT class=com/example/ApiService method=getToken mode=FAST_ROT bytesMode=STRING length=24
+AGP 7.x or newer is recommended. For new projects, use AGP and Gradle 8.x; for maintained projects, 7.x; for legacy projects, AGP 6.x with Gradle 6.7+.
 
-========================================
-PERFORMANCE SUMMARY
-========================================
-Execution Time: 1,245ms
+## Notes
 
-Overall Statistics:
-  Classes Scanned: 156
-  Classes Skipped: 12
-  Strings Encrypted: 892
-  Strings Ignored: 342
+- Annotation string parameters cannot be replaced with runtime decryption calls, so they are not encrypted as ordinary strings.
+- Resources, manifests, assets, and raw files are outside the class ASM processing scope.
+- The plugin uses `InstrumentationScope.ALL` by default, so dependency classes are also processed and large dependency graphs can increase build time.
 
-Algorithm Distribution:
-  XOR_SIMD: 312 strings (35%)
-  FAST_ROT: 223 strings (25%)
-  REVERSE: 178 strings (20%)
-  XOR_SHIFT: 134 strings (15%)
-  XOR: 45 strings (5%)
+## Related project
 
-String Length Distribution:
-  1-8 chars: 156 strings
-  9-20 chars: 234 strings
-  21-50 chars: 298 strings
-  51-100 chars: 156 strings
-  101-200 chars: 48 strings
-
-Performance Assessment:
-  ⭐⭐⭐⭐⭐ Very Fast (<1s)
-  Encryption Rate: 716 strings/sec
-```
-
-## 智能算法选择（可选功能）
-
-StringBlur 支持智能算法选择策略，可以根据字符串特征自动选择最佳加密算法：
-
-### 选择策略
-
-- `SelectionStrategy.RANDOM`：**默认**，完全随机选择（保持现有行为）
-- `SelectionStrategy.SMART`：智能选择，基于字符串长度、内容敏感度和特征
-- `SelectionStrategy.PERFORMANCE`：性能优先，选择最快的算法
-- `SelectionStrategy.SECURITY`：安全优先，选择最安全的算法
-
-### 智能选择示例
-
-```groovy
-stringblur {
-    key 'Hello World'
-    enable true
-    
-    // 基础配置：保持现有随机行为
-    modes = [Mode.XOR, Mode.SHIFT, Mode.XOR_SHIFT]
-    
-    // 启用智能选择（可选）
-    selectionStrategy = SelectionStrategy.SMART
-    performanceWeight = 0.7  // 偏重性能
-    securityWeight = 0.3     // 兼顾安全
-}
-```
-
-### 智能选择规则
-
-| 字符串特征 | 选择算法 | 说明 |
-|------------|----------|------|
-| 短字符串 (1-8字符) | FAST_ROT | 位旋转最快 |
-| 中等长度 (9-50字符) | XOR_SIMD | SIMD批量处理 |
-| 长字符串 (>200字符) | REVERSE | 内存操作最快 |
-| 包含敏感词 | XOR_SHIFT | 安全性最高 |
-| 数字为主 | FAST_ROT | 适合数字特征 |
-| 二进制数据 | XOR_SIMD | 高效处理 |
-
-### 使用建议
-
-1. **保持现状**：不设置 `selectionStrategy` 即可保持现有随机行为
-2. **性能优化**：设置 `selectionStrategy = SelectionStrategy.PERFORMANCE`
-3. **安全优先**：设置 `selectionStrategy = SelectionStrategy.SECURITY`
-4. **平衡选择**：设置 `selectionStrategy = SelectionStrategy.SMART` 并调整权重
-
-报告事件包括：
-
-- `SCAN`：扫描到 class。
-- `SKIP`：class 因白名单或 `encodePackages` 范围被跳过。
-- `ENCRYPT`：字符串已加密，并记录实际使用的 `mode` 和 `bytesMode`。
-- `IGNORE`：LDC 常量未加密，例如空字符串、非字符串常量或长度小于 `minLength`。
-
-## 注意事项
-
-- 注解参数字符串不能替换为运行时解密调用，因此不会按普通字符串加密。
-- 资源、Manifest、assets、raw 等文件不属于 class ASM 处理范围。
-- 插件默认使用 `InstrumentationScope.ALL`，会处理项目 class 和依赖 class；依赖较多时构建耗时会增加。
-
-## 推荐项目
-
-- [AabResGuard](https://github.com/dawnuu/AabResGuard) — Android AAB 资源混淆工具，保护 APK/AAB 中的资源文件不被轻易提取和逆向。
+- [AabResGuard](https://github.com/dawnuu/AabResGuard) — Android AAB resource obfuscation tool.
