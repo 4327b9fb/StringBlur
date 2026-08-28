@@ -2,13 +2,15 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-最新版本：`2.1.0`
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.dawnuu/stringblur?style=flat-square)](https://central.sonatype.com/artifact/io.github.dawnuu/stringblur)
 
 StringBlur 是一个 Android Gradle 插件，用于在构建阶段对 class 中的字符串常量进行加密，并在运行时自动解密。
 
 ## 安装
 
-### plugins DSL / Version Catalog
+### plugins DSL / Version Catalog（后续 marker 发布版本）
+
+> **仅供 1.0.0 参考：** Central 中已经发布插件实现构件，但自动生成的插件 marker 不在已授权的 `io.github.dawnuu` namespace 下。下面的示例适用于后续发布 marker 的版本；`1.0.0` 请使用下方的 `buildscript` 方式。
 
 在 `settings.gradle(.kts)` 中配置插件仓库：
 
@@ -16,7 +18,6 @@ StringBlur 是一个 Android Gradle 插件，用于在构建阶段对 class 中�
 // settings.gradle
 pluginManagement {
     repositories {
-        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/"}
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -28,7 +29,6 @@ pluginManagement {
 // settings.gradle.kts
 pluginManagement {
     repositories {
-        maven { url = uri("https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/") }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -36,11 +36,11 @@ pluginManagement {
 }
 ```
 
-在 `gradle/libs.versions.toml` 中声明插件：
+对于已发布插件 marker 的版本，在 `gradle/libs.versions.toml` 中声明插件：
 
 ```toml
 [plugins]
-stringblur = { id = "stringblur", version.ref = "2.1.0" }
+stringblur = { id = "stringblur", version = "1.0.0" }
 ```
 
 根目录 `build.gradle(.kts)`：
@@ -75,7 +75,7 @@ plugins {
 }
 ```
 
-### buildscript
+### buildscript（1.0.0 推荐）
 
 也可以使用传统 `buildscript` 方式：
 
@@ -83,12 +83,11 @@ plugins {
 // build.gradle
 buildscript {
     repositories {
-        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/"}
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.string.plugin:stringblur:2.1.0'
+        classpath 'io.github.dawnuu:stringblur:1.0.0'
     }
 }
 ```
@@ -97,12 +96,11 @@ buildscript {
 // build.gradle.kts
 buildscript {
     repositories {
-        maven { url = uri("https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/") }
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.string.plugin:stringblur:2.1.0")
+        classpath("io.github.dawnuu:stringblur:1.0.0")
     }
 }
 ```
@@ -118,6 +116,53 @@ apply plugin: 'stringblur'
 // build.gradle.kts
 apply(plugin = "stringblur")
 ```
+
+## 从 2.1.0 迁移
+
+> **迁移变动：** `1.0.0` 将构件从旧的 GitHub Maven 仓库迁移到 Maven Central；插件 ID 和 Java/Kotlin 源码包保持不变。
+
+| 项目 | 旧版 `2.1.0` | 当前 `1.0.0` |
+| --- | --- | --- |
+| 仓库 | 旧版自定义 GitHub Maven 仓库（已移除） | `mavenCentral()` |
+| 插件坐标 | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.0` |
+| 插件 ID | `stringblur` | `stringblur` |
+| 源码包 | `com.android.string.plugin` | `com.android.string.plugin` |
+
+### 旧版 `2.1.0` 的 Plugins DSL 接入方式
+
+仅作历史参考，旧版 Kotlin DSL 的插件声明方式如下：
+
+```kotlin
+// 模块 build.gradle.kts
+plugins {
+    id("stringblur") version "2.1.0"
+}
+```
+
+> 上面的 `id("stringblur")` 仅适用于旧版 `2.1.0`，旧版自定义仓库已不再保留；当前 `1.0.0` 因 marker 未发布，请使用上面的 `buildscript` 方式。
+
+### Maven Central 坐标
+
+发布后，两个构件使用以下 Maven Central 坐标：
+
+- Gradle 插件：`io.github.dawnuu:stringblur:1.0.0`
+- 公共 API：`io.github.dawnuu:common:1.0.0`
+
+Java/Kotlin 源码包仍然保留为 `com.android.string.plugin`，只有 Maven 发布坐标使用 `io.github.dawnuu`。
+
+### 自定义 Deployment 名称
+
+已经发布的 `1.0.0` deployment 不能改名。后续版本可以使用自定义上传脚本，将 Central 中的 deployment 命名为 `StringBlur-<VERSION>`：
+
+```bash
+./scripts/publish-central.sh
+```
+
+可设置 `CENTRAL_DEPLOYMENT_NAME` 覆盖名称，使用 `--dry-run` 只构建 bundle 不上传，或使用 `--automatic` 请求验证通过后自动发布。
+
+## 许可证
+
+本项目采用 Apache License 2.0，详见 [LICENSE](LICENSE)。
 
 ## 配置
 

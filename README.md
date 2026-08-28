@@ -2,20 +2,21 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Latest version: `2.1.0`
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.dawnuu/stringblur?style=flat-square)](https://central.sonatype.com/artifact/io.github.dawnuu/stringblur)
 
 StringBlur is an Android Gradle plugin that encrypts string constants in class files during the build and decrypts them automatically at runtime.
 
 ## Installation
 
-### Plugins DSL / Version Catalog
+### Plugins DSL / Version Catalog (future marker publication)
+
+> **Reference only for 1.0.0:** The Central publication contains the implementation artifact, but its generated plugin marker is outside the authorized `io.github.dawnuu` namespace. The examples below are for a future release that publishes the marker; use the `buildscript` setup below for 1.0.0.
 
 Configure the plugin repository in `settings.gradle(.kts)`:
 
 ```groovy
 pluginManagement {
     repositories {
-        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/" }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -23,12 +24,12 @@ pluginManagement {
 }
 ```
 
-Declare and apply the plugin with a version catalog:
+For a release that publishes the plugin marker, declare and apply the plugin with a version catalog:
 
 ```toml
 # gradle/libs.versions.toml
 [plugins]
-stringblur = { id = "stringblur", version = "2.1.0" }
+stringblur = { id = "stringblur", version = "1.0.0" }
 ```
 
 ```kotlin
@@ -45,17 +46,16 @@ plugins {
 
 The equivalent Groovy DSL uses `alias(libs.plugins.stringblur)` in `build.gradle`.
 
-### Legacy `buildscript`
+### `buildscript` (recommended for 1.0.0)
 
 ```groovy
 buildscript {
     repositories {
-        maven { url "https://raw.githubusercontent.com/dawnuu/maven/refs/heads/main/gradle/" }
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.string.plugin:stringblur:2.1.0'
+        classpath 'io.github.dawnuu:stringblur:1.0.0'
     }
 }
 
@@ -63,7 +63,54 @@ buildscript {
 apply plugin: 'stringblur'
 ```
 
-For Kotlin DSL, use `classpath("com.android.string.plugin:stringblur:2.1.0")` and `apply(plugin = "stringblur")`.
+For Kotlin DSL, use `classpath("io.github.dawnuu:stringblur:1.0.0")` and `apply(plugin = "stringblur")`.
+
+## Migration from 2.1.0
+
+> **Migration:** Version `1.0.0` moves the published artifacts from the old GitHub Maven repository to Maven Central. The plugin ID and Java/Kotlin source packages stay unchanged.
+
+| Item | Previous `2.1.0` | Current `1.0.0` |
+| --- | --- | --- |
+| Repository | Previous custom GitHub Maven repository (removed) | `mavenCentral()` |
+| Plugin coordinate | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.0` |
+| Plugin ID | `stringblur` | `stringblur` |
+| Source packages | `com.android.string.plugin` | `com.android.string.plugin` |
+
+### Previous `2.1.0` Plugins DSL setup
+
+For historical reference, the old Kotlin DSL plugin declaration was:
+
+```kotlin
+// Module build.gradle.kts
+plugins {
+    id("stringblur") version "2.1.0"
+}
+```
+
+The `id("stringblur")` example above is for the previous `2.1.0` setup only; the old custom repository is no longer included. For current `1.0.0`, use the `buildscript` setup above.
+
+### Maven Central coordinates
+
+After publication, the artifacts use these Maven Central coordinates:
+
+- Gradle plugin: `io.github.dawnuu:stringblur:1.0.0`
+- Shared API: `io.github.dawnuu:common:1.0.0`
+
+The Java/Kotlin source packages remain under `com.android.string.plugin`; only the Maven publication coordinates use `io.github.dawnuu`.
+
+### Custom deployment name
+
+The published `1.0.0` deployment cannot be renamed. For future releases, use the custom uploader to name the Central deployment `StringBlur-<VERSION>`:
+
+```bash
+./scripts/publish-central.sh
+```
+
+Set `CENTRAL_DEPLOYMENT_NAME` to override the name, use `--dry-run` to build the bundle without uploading, or use `--automatic` to request automatic release after validation.
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
 ## Configuration
 

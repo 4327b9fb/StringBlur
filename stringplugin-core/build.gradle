@@ -1,10 +1,10 @@
 plugins {
     id 'org.jetbrains.kotlin.jvm'
     id 'java-gradle-plugin'
-    id 'maven-publish'
+    id 'com.vanniktech.maven.publish'
 }
 
-group = 'com.android.string.plugin'
+group = 'io.github.dawnuu'
 version = VERSION
 
 configurations.all {
@@ -33,24 +33,35 @@ gradlePlugin {
     }
 }
 
-publishing {
-    repositories {
-//        maven {
-//            url System.getenv("MAVEN_URL")
-//            credentials {
-//                username System.getenv("MAVEN_UPLOAD_USER")
-//                password System.getenv("MAVEN_UPLOAD_PASS")
-//            }
-//            allowInsecureProtocol true
-//        }
-        maven {
-            url '../../../maven/gradle'
-        }
-    }
-}
+mavenPublishing {
+    coordinates("io.github.dawnuu", "stringblur", VERSION)
+    publishToMavenCentral()
+    signAllPublications()
 
-afterEvaluate {
-    publishing.publications.named('pluginMaven') {
-        artifactId = 'stringblur'
+    pom {
+        name = "StringBlur"
+        description = "An Android Gradle plugin that encrypts string constants during the build."
+        url = "https://github.com/dawnuu/StringBlur"
+        licenses {
+            license {
+                name = "Apache License, Version 2.0"
+                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                distribution = "repo"
+            }
+        }
+        developers {
+            developer {
+                id = "dawnuu"
+                name = "dawnuu"
+                email = "dawnuu@126.com"
+                organization = "dawnuu"
+                organizationUrl = "https://github.com/dawnuu"
+            }
+        }
+        scm {
+            url = "https://github.com/dawnuu/StringBlur"
+            connection = "scm:git:https://github.com/dawnuu/StringBlur.git"
+            developerConnection = "scm:git:ssh://git@github.com/dawnuu/StringBlur.git"
+        }
     }
 }
