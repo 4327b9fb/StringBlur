@@ -65,11 +65,11 @@ apply plugin: 'stringblur'
 
 For Kotlin DSL, use `classpath("io.github.dawnuu:stringblur:1.0.0")` and `apply(plugin = "stringblur")`.
 
-## Migration from 2.1.0
+## Migration to Maven Central
 
-> **Migration:** Version `1.0.0` moves the published artifacts from the old GitHub Maven repository to Maven Central. The plugin ID and Java/Kotlin source packages stay unchanged.
+> **Migration:** The custom GitHub Maven repository is replaced by Maven Central. This is a repository and publication-coordinate migration, not a plugin ID or source-package migration.
 
-| Item | Previous `2.1.0` | Current `1.0.0` |
+| Item | Before migration | After migration |
 | --- | --- | --- |
 | Repository | Previous custom GitHub Maven repository (removed) | `mavenCentral()` |
 | Plugin coordinate | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.0` |

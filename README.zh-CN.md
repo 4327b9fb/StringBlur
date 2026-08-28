@@ -117,11 +117,11 @@ apply plugin: 'stringblur'
 apply(plugin = "stringblur")
 ```
 
-## 从 2.1.0 迁移
+## 迁移到 Maven Central
 
-> **迁移变动：** `1.0.0` 将构件从旧的 GitHub Maven 仓库迁移到 Maven Central；插件 ID 和 Java/Kotlin 源码包保持不变。
+> **迁移变动：** 本次迁移是将自定义 GitHub Maven 仓库替换为 Maven Central，属于仓库和发布坐标迁移，而不是插件 ID 或源码包迁移。
 
-| 项目 | 旧版 `2.1.0` | 当前 `1.0.0` |
+| 项目 | 迁移前 | 迁移后 |
 | --- | --- | --- |
 | 仓库 | 旧版自定义 GitHub Maven 仓库（已移除） | `mavenCentral()` |
 | 插件坐标 | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.0` |
