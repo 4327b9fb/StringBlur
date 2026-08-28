@@ -30,6 +30,10 @@ gradlePlugin {
             id = 'stringblur'
             implementationClass = 'com.android.string.plugin.StringBlurPlugin'
         }
+        ioGithubDawnuuStringblur {
+            id = 'io.github.dawnuu.stringblur'
+            implementationClass = 'com.android.string.plugin.StringBlurPlugin'
+        }
     }
 }
 

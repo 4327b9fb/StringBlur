@@ -58,6 +58,7 @@ mkdir -p "$PUBLISH_DIRECTORY"
 "$ROOT_DIR/gradlew" \
     :stringplugin-common:publishMavenPublicationToMavenCentralRepository \
     :stringplugin-core:publishPluginMavenPublicationToMavenCentralRepository \
+    :stringplugin-core:publishIoGithubDawnuuStringblurPluginMarkerMavenPublicationToMavenCentralRepository \
     --exclude-task :stringplugin-common:prepareMavenCentralPublishing \
     --exclude-task :stringplugin-core:prepareMavenCentralPublishing
 
@@ -86,7 +87,8 @@ for expected_path in \
     "io/github/dawnuu/stringblur/$version/stringblur-$version.pom" \
     "io/github/dawnuu/stringblur/$version/stringblur-$version.jar" \
     "io/github/dawnuu/stringblur/$version/stringblur-$version-sources.jar" \
-    "io/github/dawnuu/stringblur/$version/stringblur-$version-javadoc.jar"; do
+    "io/github/dawnuu/stringblur/$version/stringblur-$version-javadoc.jar" \
+    "io/github/dawnuu/stringblur/io.github.dawnuu.stringblur.gradle.plugin/$version/io.github.dawnuu.stringblur.gradle.plugin-$version.pom"; do
     printf '%s\n' "$bundle_entries" | grep -Fx "$expected_path" >/dev/null || fail "missing bundle entry: $expected_path"
 done
 

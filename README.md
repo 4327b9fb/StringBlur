@@ -8,9 +8,9 @@ StringBlur is an Android Gradle plugin that encrypts string constants in class f
 
 ## Installation
 
-### Plugins DSL / Version Catalog (future marker publication)
+### Plugins DSL / Version Catalog
 
-> **Reference only for 1.0.0:** The Central publication contains the implementation artifact, but its generated plugin marker is outside the authorized `io.github.dawnuu` namespace. The examples below are for a future release that publishes the marker; use the `buildscript` setup below for 1.0.0.
+> **Current 1.0.1:** The plugin marker is published under the authorized plugin ID `io.github.dawnuu.stringblur`. The legacy ID `stringblur` remains available through the `buildscript` setup below.
 
 Configure the plugin repository in `settings.gradle(.kts)`:
 
@@ -24,12 +24,15 @@ pluginManagement {
 }
 ```
 
-For a release that publishes the plugin marker, declare and apply the plugin with a version catalog:
+Declare and apply the plugin with a version catalog:
 
 ```toml
 # gradle/libs.versions.toml
+[versions]
+stringblur = "1.0.1"
+
 [plugins]
-stringblur = { id = "stringblur", version = "1.0.0" }
+stringblur = { id = "io.github.dawnuu.stringblur", version.ref = "stringblur" }
 ```
 
 ```kotlin
@@ -46,7 +49,15 @@ plugins {
 
 The equivalent Groovy DSL uses `alias(libs.plugins.stringblur)` in `build.gradle`.
 
-### `buildscript` (recommended for 1.0.0)
+Without a version catalog, use:
+
+```kotlin
+plugins {
+    id("io.github.dawnuu.stringblur") version "1.0.1"
+}
+```
+
+### `buildscript` (legacy ID)
 
 ```groovy
 buildscript {
@@ -55,7 +66,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'io.github.dawnuu:stringblur:1.0.0'
+        classpath 'io.github.dawnuu:stringblur:1.0.1'
     }
 }
 
@@ -63,17 +74,19 @@ buildscript {
 apply plugin: 'stringblur'
 ```
 
-For Kotlin DSL, use `classpath("io.github.dawnuu:stringblur:1.0.0")` and `apply(plugin = "stringblur")`.
+For Kotlin DSL, use `classpath("io.github.dawnuu:stringblur:1.0.1")` and `apply(plugin = "stringblur")`.
 
 ## Migration to Maven Central
 
-> **Migration:** The custom GitHub Maven repository is replaced by Maven Central. This is a repository and publication-coordinate migration, not a plugin ID or source-package migration.
+> **Migration:** The custom GitHub Maven repository is replaced by Maven Central. This is a repository and publication-coordinate migration; the legacy `stringblur` ID remains available for `buildscript`, while the authorized namespaced ID is used by Plugins DSL.
+>
+> **1.0.0 notice:** The already-published `1.0.0` remains immutable. Use `1.0.1`, which fixes the runtime dependency coordinate and publishes the namespaced plugin marker.
 
 | Item | Before migration | After migration |
 | --- | --- | --- |
 | Repository | Previous custom GitHub Maven repository (removed) | `mavenCentral()` |
-| Plugin coordinate | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.0` |
-| Plugin ID | `stringblur` | `stringblur` |
+| Plugin coordinate | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.1` |
+| Plugin IDs | `stringblur` | `io.github.dawnuu.stringblur` (Plugins DSL); `stringblur` (buildscript) |
 | Source packages | `com.android.string.plugin` | `com.android.string.plugin` |
 
 ### Previous `2.1.0` Plugins DSL setup
@@ -87,20 +100,20 @@ plugins {
 }
 ```
 
-The `id("stringblur")` example above is for the previous `2.1.0` setup only; the old custom repository is no longer included. For current `1.0.0`, use the `buildscript` setup above.
+The `id("stringblur")` example above is for the previous `2.1.0` setup only. For current `1.0.1`, use `id("io.github.dawnuu.stringblur")` with Plugins DSL or the `buildscript` setup above.
 
 ### Maven Central coordinates
 
 After publication, the artifacts use these Maven Central coordinates:
 
-- Gradle plugin: `io.github.dawnuu:stringblur:1.0.0`
-- Shared API: `io.github.dawnuu:common:1.0.0`
+- Gradle plugin: `io.github.dawnuu:stringblur:1.0.1`
+- Shared API: `io.github.dawnuu:common:1.0.1`
 
 The Java/Kotlin source packages remain under `com.android.string.plugin`; only the Maven publication coordinates use `io.github.dawnuu`.
 
 ### Custom deployment name
 
-The published `1.0.0` deployment cannot be renamed. For future releases, use the custom uploader to name the Central deployment `StringBlur-<VERSION>`:
+Published deployments cannot be renamed. For future releases, use the custom uploader to name the Central deployment `StringBlur-<VERSION>`:
 
 ```bash
 ./scripts/publish-central.sh
