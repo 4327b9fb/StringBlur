@@ -1,13 +1,17 @@
 package com.android.string.plugin.trasform.visitor
 
+import com.android.string.plugin.data.Constant
 import com.android.string.plugin.trasform.ClassVisitorController
+import org.objectweb.asm.AnnotationVisitor
+import org.objectweb.asm.Handle
+import org.objectweb.asm.Label
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 
 /**
  * 可加密字符串 LDC 的延迟发射基类：LDC 先暂存，观察紧随其后的指令——
- * 若流入敏感 API（[SensitiveApiDetector]）则保持明文，否则照常加密。
- * 除 LDC 与方法调用外的任意指令都会先冲刷暂存串，
+ * 若流入敏感 API（[SensitiveApiDetector]）或处于 @KeepString 范围则保持明文，
+ * 否则照常加密。除 LDC 与方法调用外的任意指令都会先冲刷暂存串，
  * 保证加解密序列始终占据原 LDC 的栈位置。
  *
  * @author chancey
@@ -21,21 +25,48 @@ abstract class StringDeferringMethodVisitor(
 
     private var pending: String? = null
 
-    /** 暂存字符串的最终处理；sensitive 为 true 时须保持明文 */
-    protected abstract fun flushPending(value: String, sensitive: Boolean)
+    // 暂存串是否处于 @KeepString 范围，在 LDC 时确定
+    private var pendingKeep: Boolean = false
+
+    // 方法级 @KeepString / @EncryptString（注解在 visitCode 之前回调）
+    private var methodKeep: Boolean = false
+    private var methodEncrypt: Boolean = false
+
+    private fun keepActive(): Boolean = controller.classKeep || methodKeep
+    private fun forceActive(): Boolean = controller.classEncrypt || methodEncrypt
+
+    /** 暂存字符串的最终处理；skipReason 非 null 时保持明文并记录原因 */
+    protected abstract fun flushPending(value: String, skipReason: String?)
 
     /** 非可加密 LDC 时的状态复位钩子（如 Clinit 的 temp 标记） */
     protected open fun resetPendingState() {}
 
-    /** 直接向下游发射明文 LDC，绕过本类的暂存逻辑；子类的 sensitive 分支必须用这个而不是 super.visitLdcInsn */
+    /**
+     * PUTFIELD/PUTSTATIC 前的守卫：目标字段被 @KeepString 标注时返回 true，
+     * 暂存串将保持明文。默认不启用，由子类按字段类别覆盖。
+     */
+    protected open fun shouldKeepFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?): Boolean {
+        return false
+    }
+
+    /** 直接向下游发射明文 LDC，绕过本类的暂存逻辑；子类的明文分支必须用这个而不是 super.visitLdcInsn */
     protected fun writePlainLdc(value: String) {
         super.visitLdcInsn(value)
     }
 
+    override fun visitAnnotation(descriptor: String?, visible: Boolean): AnnotationVisitor {
+        when (descriptor) {
+            Constant.ANNOTATION_KEEP_STRING -> methodKeep = true
+            Constant.ANNOTATION_ENCRYPT_STRING -> methodEncrypt = true
+        }
+        return super.visitAnnotation(descriptor, visible)
+    }
+
     override fun visitLdcInsn(value: Any?) {
         flush()
-        if (value is String && controller.overflow(value)) {
+        if (value is String && !value.isEmpty() && (controller.overflow(value) || forceActive())) {
             pending = value
+            pendingKeep = keepActive()
         } else {
             controller.reportIgnoredLdc(methodName, value)
             super.visitLdcInsn(value)
@@ -50,12 +81,21 @@ abstract class StringDeferringMethodVisitor(
         descriptor: String?,
         isInterface: Boolean
     ) {
-        val value = pending
-        if (value != null) {
-            pending = null
-            flushPending(value, controller.isSensitiveCall(owner, name))
+        if (pending != null) {
+            flushWith(
+                when {
+                    pendingKeep -> REASON_KEEP
+                    !forceActive() && controller.isSensitiveCall(owner, name) -> REASON_SENSITIVE
+                    else -> null
+                }
+            )
         }
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
+    }
+
+    override fun visitFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?) {
+        flushBeforeFieldInsn(opcode, owner, name, descriptor)
+        super.visitFieldInsn(opcode, owner, name, descriptor)
     }
 
     override fun visitInsn(opcode: Int) {
@@ -78,27 +118,22 @@ abstract class StringDeferringMethodVisitor(
         super.visitTypeInsn(opcode, type)
     }
 
-    override fun visitFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?) {
-        flush()
-        super.visitFieldInsn(opcode, owner, name, descriptor)
-    }
-
     override fun visitInvokeDynamicInsn(
         name: String?,
         descriptor: String?,
-        bootstrapMethodHandle: org.objectweb.asm.Handle?,
+        bootstrapMethodHandle: Handle?,
         vararg bootstrapMethodArguments: Any?
     ) {
         flush()
         super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, *bootstrapMethodArguments)
     }
 
-    override fun visitJumpInsn(opcode: Int, label: org.objectweb.asm.Label?) {
+    override fun visitJumpInsn(opcode: Int, label: Label?) {
         flush()
         super.visitJumpInsn(opcode, label)
     }
 
-    override fun visitLabel(label: org.objectweb.asm.Label?) {
+    override fun visitLabel(label: Label?) {
         flush()
         super.visitLabel(label)
     }
@@ -108,12 +143,12 @@ abstract class StringDeferringMethodVisitor(
         super.visitIincInsn(varIndex, increment)
     }
 
-    override fun visitTableSwitchInsn(min: Int, max: Int, dflt: org.objectweb.asm.Label?, vararg labels: org.objectweb.asm.Label?) {
+    override fun visitTableSwitchInsn(min: Int, max: Int, dflt: Label?, vararg labels: Label?) {
         flush()
         super.visitTableSwitchInsn(min, max, dflt, *labels)
     }
 
-    override fun visitLookupSwitchInsn(dflt: org.objectweb.asm.Label?, keys: IntArray?, labels: Array<out org.objectweb.asm.Label>?) {
+    override fun visitLookupSwitchInsn(dflt: Label?, keys: IntArray?, labels: Array<out Label>?) {
         flush()
         super.visitLookupSwitchInsn(dflt, keys, labels)
     }
@@ -134,7 +169,7 @@ abstract class StringDeferringMethodVisitor(
         super.visitFrame(type, numLocal, local, numStack, stack)
     }
 
-    override fun visitLineNumber(line: Int, start: org.objectweb.asm.Label?) {
+    override fun visitLineNumber(line: Int, start: Label?) {
         flush()
         super.visitLineNumber(line, start)
     }
@@ -150,8 +185,31 @@ abstract class StringDeferringMethodVisitor(
     }
 
     protected fun flush() {
+        flushWith(if (pendingKeep) REASON_KEEP else null)
+    }
+
+    /**
+     * 冲刷暂存串；字段指令场景先判定目标字段是否被 @KeepString 标注，
+     * 以决定明文发射（如 PUTFIELD 到 keep 字段），再交由子类处理字段指令。
+     */
+    protected fun flushBeforeFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?) {
+        val value = pending
+        if (value != null && !pendingKeep && shouldKeepFieldInsn(opcode, owner, name, descriptor)) {
+            flushWith(REASON_KEEP)
+            return
+        }
+        flush()
+    }
+
+    private fun flushWith(skipReason: String?) {
         val value = pending ?: return
         pending = null
-        flushPending(value, false)
+        pendingKeep = false
+        flushPending(value, skipReason)
+    }
+
+    companion object {
+        const val REASON_KEEP = "keepString"
+        const val REASON_SENSITIVE = "sensitiveApi"
     }
 }

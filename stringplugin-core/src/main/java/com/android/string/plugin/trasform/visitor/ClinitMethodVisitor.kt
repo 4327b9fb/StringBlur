@@ -1,5 +1,6 @@
 package com.android.string.plugin.trasform.visitor
 
+import com.android.string.plugin.data.Constant
 import com.android.string.plugin.field.StringFiled
 import com.android.string.plugin.trasform.ClassVisitorController
 import org.objectweb.asm.MethodVisitor
@@ -20,8 +21,11 @@ class ClinitMethodVisitor(
         super.visitCode()
         // Here init static final fields.
         controller.staticFinalFields.forEach {
-            if (!controller.overflow(it.value)) {
-                return
+            if (it.keep) {
+                return@forEach
+            }
+            if (!it.force && !controller.overflow(it.value)) {
+                return@forEach
             }
             controller.write(it.value, mv, methodName)
             super.visitFieldInsn(
@@ -33,11 +37,11 @@ class ClinitMethodVisitor(
         }
     }
 
-    override fun flushPending(value: String, sensitive: Boolean) {
+    override fun flushPending(value: String, skipReason: String?) {
         // Here init static or static final fields, but we must check field name int 'visitFieldInsn'
         temp = value
-        if (sensitive) {
-            controller.reportIgnored(methodName, value, "sensitiveApi")
+        if (skipReason != null) {
+            controller.reportIgnored(methodName, value, skipReason)
             writePlainLdc(value)
             return
         }
@@ -48,14 +52,21 @@ class ClinitMethodVisitor(
         temp = null
     }
 
+    override fun shouldKeepFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?): Boolean {
+        return opcode == Opcodes.PUTSTATIC &&
+            descriptor == StringFiled.DESC &&
+            controller.currentClassName == owner &&
+            controller.isKeepStaticField(name)
+    }
+
     override fun visitFieldInsn(
         opcode: Int,
         owner: String?,
         name: String?,
         descriptor: String?
     ) {
-        // 先冲刷暂存的 LDC，temp 才能反映即将 PUTSTATIC 的值
-        flush()
+        // 先冲刷暂存的 LDC（含 keep 字段判定），temp 才能反映即将 PUTSTATIC 的值
+        flushBeforeFieldInsn(opcode, owner, name, descriptor)
         if (opcode == Opcodes.PUTSTATIC &&
             descriptor == StringFiled.DESC &&
             controller.currentClassName == owner &&

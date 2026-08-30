@@ -16,9 +16,9 @@ class NormalMethodVisitor(
     methodName: String?
 ) : StringDeferringMethodVisitor(mv, controller, methodName) {
 
-    override fun flushPending(value: String, sensitive: Boolean) {
-        if (sensitive) {
-            controller.reportIgnored(methodName, value, "sensitiveApi")
+    override fun flushPending(value: String, skipReason: String?) {
+        if (skipReason != null) {
+            controller.reportIgnored(methodName, value, skipReason)
             writePlainLdc(value)
             return
         }

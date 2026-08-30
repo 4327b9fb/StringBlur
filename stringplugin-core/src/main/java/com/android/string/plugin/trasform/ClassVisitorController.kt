@@ -40,14 +40,49 @@ class ClassVisitorController(
     fun isSensitiveCall(owner: String?, name: String?): Boolean {
         return skipSensitiveApi && SensitiveApiDetector.isSensitive(owner, name)
     }
+
+    // 类级 @KeepString / @EncryptString（由 StringBlurClassVisitor.visitAnnotation 设置）
+    var classKeep: Boolean = false
+    var classEncrypt: Boolean = false
+
     val staticFinalFields = mutableListOf<StringFiled>()
     val staticFields = mutableListOf<StringFiled>()
     val finalFields = mutableListOf<StringFiled>()
     private val fields = mutableListOf<StringFiled>()
     private var isClInitExists = false
     private val random = Random(key.hashCode())
+
+    fun markFieldAnnotation(name: String, keep: Boolean, force: Boolean) {
+        (staticFinalFields + staticFields + finalFields + fields)
+            .filter { it.name == name }
+            .forEach {
+                if (keep) {
+                    it.keep = true
+                }
+                if (force) {
+                    it.force = true
+                }
+            }
+    }
+
+    fun isKeepStaticField(name: String?): Boolean {
+        if (name == null) {
+            return false
+        }
+        return staticFields.any { it.name == name && it.keep } ||
+            staticFinalFields.any { it.name == name && it.keep }
+    }
+
+    fun isKeepInstanceField(name: String?): Boolean {
+        if (name == null) {
+            return false
+        }
+        return finalFields.any { it.name == name && it.keep } ||
+            fields.any { it.name == name && it.keep }
+    }
+
     fun visitField(access: Int, name: String?, desc: String?, value: String?) {
-        if (name.isNullOrBlank() || desc != StringFiled.DESC) {
+        if (classKeep || name.isNullOrBlank() || desc != StringFiled.DESC) {
             return
         }
         val isStatic = (access and Opcodes.ACC_STATIC) != 0
@@ -69,7 +104,10 @@ class ClassVisitorController(
         mv.visitCode()
         // Here init static final fields.
         staticFinalFields.forEach {
-            if (!overflow(it.value)) {
+            if (it.keep) {
+                return@forEach
+            }
+            if (!it.force && !overflow(it.value)) {
                 return@forEach
             }
             write(it.value, mv)
@@ -81,7 +119,7 @@ class ClassVisitorController(
     }
 
     fun isVisitClInitMethod(): Boolean {
-        return !isClInitExists && staticFinalFields.isNotEmpty()
+        return !isClInitExists && staticFinalFields.any { !it.keep }
     }
 
     fun visitMethod(access: Int, mv: MethodVisitor, name: String?): MethodVisitor {

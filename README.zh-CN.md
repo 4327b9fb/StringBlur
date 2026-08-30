@@ -348,6 +348,38 @@ stringblur {
 - `BytesMode.BYTES`：密文写成 byte array。
 - `BytesMode.RANDOM`：每个字符串随机选择 `STRING` 或 `BYTES`。
 
+## 注解级控制
+
+插件依赖的 `io.github.dawnuu:common`（应用插件后自动引入）内置两个注解，可精细控制加密范围：
+
+| 注解 | 作用范围 | 效果 |
+| --- | --- | --- |
+| `@KeepString` | 类 / 方法 / 字段 | 范围内字符串保持明文，并记录到报告（`reason=keepString`） |
+| `@EncryptString` | 类 / 方法 / 字段 | 强制加密：压过 `minLength` 与敏感 API 自动跳过 |
+
+```kotlin
+import com.android.string.plugin.KeepString
+import com.android.string.plugin.EncryptString
+
+class Config {
+    @KeepString                      // 字段值保持明文
+    private val appId = "com.example.app"
+
+    @EncryptString                   // 短字符串也强制加密
+    fun token(): String = "abc"
+
+    @KeepString                      // 方法内字符串不加密
+    fun className(): String = "com.example.MainActivity"
+}
+```
+
+说明：
+
+- 注解为 `CLASS` Retention，仅构建期读取，不进入运行时行为。
+- Kotlin 属性注解会自动落到 backing field；无 backing field 的属性需写 `@get:KeepString`。
+- 方法级注解不覆盖 lambda / 匿名对象生成的合成方法（合成方法会跟随类级注解）。
+- 字段级 `@EncryptString` 仅对带 ConstantValue 的静态 String 常量生效。
+
 ## 加密报告
 
 开启插件后会按 variant 生成报告文件：

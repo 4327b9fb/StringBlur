@@ -191,6 +191,38 @@ Encrypted data can be stored as a string (`BytesMode.STRING`), a byte array (`By
 | Sensitive content | `XOR_SHIFT` |
 | Mostly numeric or binary data | `FAST_ROT` or `XOR_SIMD` |
 
+## Annotation-based control
+
+The `io.github.dawnuu:common` dependency (added automatically by the plugin) ships two annotations for fine-grained control:
+
+| Annotation | Targets | Effect |
+| --- | --- | --- |
+| `@KeepString` | class / method / field | Strings in scope stay plaintext, reported with `reason=keepString` |
+| `@EncryptString` | class / method / field | Force encryption, overriding `minLength` and the sensitive-API skip |
+
+```kotlin
+import com.android.string.plugin.KeepString
+import com.android.string.plugin.EncryptString
+
+class Config {
+    @KeepString                      // field value stays plaintext
+    private val appId = "com.example.app"
+
+    @EncryptString                   // force-encrypt short strings
+    fun token(): String = "abc"
+
+    @KeepString                      // strings in this method are not encrypted
+    fun className(): String = "com.example.MainActivity"
+}
+```
+
+Notes:
+
+- The annotations use `CLASS` retention and are only read at build time.
+- Kotlin property annotations land on the backing field; properties without one need `@get:KeepString`.
+- Method-level annotations do not cover synthetic lambda methods (they follow the class-level annotation).
+- Field-level `@EncryptString` only applies to static String constants with a ConstantValue.
+
 ## Encryption report
 
 Each variant produces a report at:

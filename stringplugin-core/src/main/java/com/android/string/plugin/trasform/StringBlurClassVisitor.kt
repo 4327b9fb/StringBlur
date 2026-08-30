@@ -1,8 +1,10 @@
 package com.android.string.plugin.trasform
 
+import com.android.string.plugin.data.Constant
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.BytesMode
 import com.android.string.plugin.mode.SelectionStrategy
+import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.FieldVisitor
 import org.objectweb.asm.MethodVisitor
@@ -27,6 +29,15 @@ class StringBlurClassVisitor(
     securityWeight: Double,
 ) : ClassVisitor(Opcodes.ASM9, cv) {
     private val controller = ClassVisitorController(wrapperClass, wrapperMethod, key, bytesMode, modes, reportPath, minLength, skipSensitiveApi, selectionStrategy, performanceWeight, securityWeight)
+
+    override fun visitAnnotation(descriptor: String?, visible: Boolean): AnnotationVisitor {
+        when (descriptor) {
+            Constant.ANNOTATION_KEEP_STRING -> controller.classKeep = true
+            Constant.ANNOTATION_ENCRYPT_STRING -> controller.classEncrypt = true
+        }
+        return super.visitAnnotation(descriptor, visible)
+    }
+
     override fun visit(
         version: Int,
         access: Int,
@@ -62,7 +73,19 @@ class StringBlurClassVisitor(
         value: Any?
     ): FieldVisitor {
         controller.visitField(access, name, descriptor, value as? String)
-        return super.visitField(access, name, descriptor, signature, value)
+        val fieldVisitor = super.visitField(access, name, descriptor, signature, value)
+        if (name == null) {
+            return fieldVisitor
+        }
+        return object : FieldVisitor(Opcodes.ASM9, fieldVisitor) {
+            override fun visitAnnotation(descriptor: String?, visible: Boolean): AnnotationVisitor {
+                when (descriptor) {
+                    Constant.ANNOTATION_KEEP_STRING -> controller.markFieldAnnotation(name, keep = true, force = false)
+                    Constant.ANNOTATION_ENCRYPT_STRING -> controller.markFieldAnnotation(name, keep = false, force = true)
+                }
+                return super.visitAnnotation(descriptor, visible)
+            }
+        }
     }
 
     override fun visitMethod(
