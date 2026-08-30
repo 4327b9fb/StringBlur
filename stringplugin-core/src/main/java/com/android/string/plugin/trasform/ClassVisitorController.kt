@@ -73,6 +73,14 @@ class ClassVisitorController(
             staticFinalFields.any { it.name == name && it.keep }
     }
 
+    fun isForceStaticField(name: String?): Boolean {
+        if (name == null) {
+            return false
+        }
+        return staticFields.any { it.name == name && it.force } ||
+            staticFinalFields.any { it.name == name && it.force }
+    }
+
     fun isKeepInstanceField(name: String?): Boolean {
         if (name == null) {
             return false
@@ -126,17 +134,18 @@ class ClassVisitorController(
         access: Int,
         mv: MethodVisitor,
         name: String?,
-        sensitiveLdcOrdinals: Set<Int> = emptySet()
+        sensitiveLdcOrdinals: Set<Int> = emptySet(),
+        maxLocals: Int = 0
     ): MethodVisitor {
         return when (name) {
             // If clinit exists meaning the static fields (not final) would have be inited here.
             "<clinit>" -> {
                 isClInitExists = true
-                ClinitMethodVisitor(mv, this, name, sensitiveLdcOrdinals)
+                ClinitMethodVisitor(mv, this, name, sensitiveLdcOrdinals, maxLocals)
             }
             // Here init final(not static) and normal fields
-            "<init>" -> InitMethodVisitor(mv, this, name, sensitiveLdcOrdinals)
-            else -> NormalMethodVisitor(access, mv, this, name, sensitiveLdcOrdinals)
+            "<init>" -> InitMethodVisitor(mv, this, name, sensitiveLdcOrdinals, maxLocals)
+            else -> NormalMethodVisitor(access, mv, this, name, sensitiveLdcOrdinals, maxLocals)
         }
     }
 

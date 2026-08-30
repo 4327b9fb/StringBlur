@@ -1,6 +1,7 @@
 package com.android.string.plugin.trasform
 
 import com.android.string.plugin.data.Constant
+import com.android.string.plugin.field.StringFiled
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.BytesMode
 import com.android.string.plugin.mode.SelectionStrategy
@@ -10,6 +11,7 @@ import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.FieldVisitor
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
 
 /**
@@ -75,19 +77,53 @@ class StringBlurClassVisitor(
         value: Any?
     ): FieldVisitor {
         controller.visitField(access, name, descriptor, value as? String)
-        val fieldVisitor = super.visitField(access, name, descriptor, signature, value)
-        if (name == null) {
-            return fieldVisitor
-        }
-        return object : FieldVisitor(Opcodes.ASM9, fieldVisitor) {
+        return object : FieldNode(Opcodes.ASM9, access, name, descriptor, signature, value) {
             override fun visitAnnotation(descriptor: String?, visible: Boolean): AnnotationVisitor {
                 when (descriptor) {
-                    Constant.ANNOTATION_KEEP_STRING -> controller.markFieldAnnotation(name, keep = true, force = false)
-                    Constant.ANNOTATION_ENCRYPT_STRING -> controller.markFieldAnnotation(name, keep = false, force = true)
+                    Constant.ANNOTATION_KEEP_STRING -> controller.markFieldAnnotation(name.orEmpty(), keep = true, force = false)
+                    Constant.ANNOTATION_ENCRYPT_STRING -> controller.markFieldAnnotation(name.orEmpty(), keep = false, force = true)
                 }
                 return super.visitAnnotation(descriptor, visible)
             }
+
+            override fun visitEnd() {
+                super.visitEnd()
+                val removeConstantValue = name != null &&
+                    descriptor == StringFiled.DESC &&
+                    value is String &&
+                    !controller.classKeep &&
+                    !controller.isKeepStaticField(name) &&
+                    (controller.isForceStaticField(name) || controller.overflow(value))
+                val fieldVisitor = emitField(
+                    access,
+                    name,
+                    descriptor,
+                    signature,
+                    if (removeConstantValue) null else value
+                )
+                accept(object : ClassVisitor(Opcodes.ASM9) {
+                    override fun visitField(
+                        access: Int,
+                        name: String?,
+                        descriptor: String?,
+                        signature: String?,
+                        value: Any?
+                    ): FieldVisitor {
+                        return fieldVisitor
+                    }
+                })
+            }
         }
+    }
+
+    private fun emitField(
+        access: Int,
+        name: String?,
+        descriptor: String?,
+        signature: String?,
+        value: Any?
+    ): FieldVisitor {
+        return super.visitField(access, name, descriptor, signature, value)
     }
 
     override fun visitMethod(
@@ -106,7 +142,7 @@ class StringBlurClassVisitor(
                     controller.currentClassName,
                     this
                 )
-                accept(controller.visitMethod(access, mv, name, sensitiveLdcOrdinals))
+                accept(controller.visitMethod(access, mv, name, sensitiveLdcOrdinals, maxLocals))
             }
         }
     }

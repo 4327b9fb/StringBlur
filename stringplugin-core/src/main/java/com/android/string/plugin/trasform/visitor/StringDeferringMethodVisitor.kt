@@ -21,11 +21,13 @@ abstract class StringDeferringMethodVisitor(
     mv: MethodVisitor,
     protected val controller: ClassVisitorController,
     protected val methodName: String?,
-    private val sensitiveLdcOrdinals: Set<Int> = emptySet()
+    private val sensitiveLdcOrdinals: Set<Int> = emptySet(),
+    initialMaxLocals: Int = 0
 ) : MethodVisitor(Opcodes.ASM9, mv) {
 
     private var pending: String? = null
     private var ldcOrdinal: Int = 0
+    private var nextLocal: Int = initialMaxLocals
 
     // 暂存串是否处于 @KeepString 范围，在 LDC 时确定
     private var pendingKeep: Boolean = false
@@ -134,6 +136,17 @@ abstract class StringDeferringMethodVisitor(
         vararg bootstrapMethodArguments: Any?
     ) {
         flush()
+        if (StringConcatRewriter.rewrite(
+                this,
+                name,
+                descriptor,
+                bootstrapMethodHandle,
+                bootstrapMethodArguments,
+                ::allocateLocals
+            )
+        ) {
+            return
+        }
         super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, *bootstrapMethodArguments)
     }
 
@@ -185,7 +198,7 @@ abstract class StringDeferringMethodVisitor(
 
     override fun visitMaxs(maxStack: Int, maxLocals: Int) {
         flush()
-        super.visitMaxs(maxStack, maxLocals)
+        super.visitMaxs(maxOf(maxStack, 3), maxOf(maxLocals, nextLocal))
     }
 
     override fun visitEnd() {
@@ -215,6 +228,15 @@ abstract class StringDeferringMethodVisitor(
         pending = null
         pendingKeep = false
         flushPending(value, skipReason)
+    }
+
+    private fun allocateLocals(types: List<org.objectweb.asm.Type>): IntArray {
+        val locals = IntArray(types.size)
+        for (index in types.indices.reversed()) {
+            locals[index] = nextLocal
+            nextLocal += types[index].size
+        }
+        return locals
     }
 
     companion object {

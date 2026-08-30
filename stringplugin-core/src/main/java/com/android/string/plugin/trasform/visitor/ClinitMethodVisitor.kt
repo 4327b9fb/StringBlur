@@ -14,8 +14,9 @@ class ClinitMethodVisitor(
     mv: MethodVisitor,
     controller: ClassVisitorController,
     methodName: String?,
-    sensitiveLdcOrdinals: Set<Int> = emptySet()
-) : StringDeferringMethodVisitor(mv, controller, methodName, sensitiveLdcOrdinals) {
+    sensitiveLdcOrdinals: Set<Int> = emptySet(),
+    maxLocals: Int = 0
+) : StringDeferringMethodVisitor(mv, controller, methodName, sensitiveLdcOrdinals, maxLocals) {
     private var temp: String? = null
 
     override fun visitCode() {
