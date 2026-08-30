@@ -45,6 +45,14 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
     @get:Input
     abstract val reportPath: Property<String>
 
+    /** 运行时解密入口类的内部名（斜线分隔），按配置派生 */
+    @get:Input
+    abstract val wrapperClass: Property<String>
+
+    /** 运行时解密入口方法名，按配置派生 */
+    @get:Input
+    abstract val wrapperMethod: Property<String>
+
     @get:Input
     abstract val selectionStrategy: Property<SelectionStrategy>
 
@@ -60,7 +68,9 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
         extension: StringBlurExtension,
         variantName: String,
         reportPath: Provider<String>,
-        modes: List<Mode>
+        modes: List<Mode>,
+        wrapperClass: String,
+        wrapperMethod: String
     ) {
         this.key.set(generator.generate())
         this.bytesMode.set(extension.bytesMode)
@@ -69,6 +79,8 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
         this.minLength.set(extension.minLength.coerceAtLeast(0))
         this.variantName.set(variantName)
         this.reportPath.set(reportPath)
+        this.wrapperClass.set(wrapperClass)
+        this.wrapperMethod.set(wrapperMethod)
         this.selectionStrategy.set(extension.selectionStrategy)
         this.performanceWeight.set(extension.performanceWeight)
         this.securityWeight.set(extension.securityWeight)

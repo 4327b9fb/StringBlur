@@ -464,6 +464,7 @@ stringblur {
 - 注解参数字符串不能替换为运行时解密调用，因此不会按普通字符串加密。
 - 资源、Manifest、assets、raw 等文件不属于 class ASM 处理范围。
 - 插件默认使用 `InstrumentationScope.ALL`，会处理项目 class 和依赖 class；依赖较多时构建耗时会增加。
+- 运行时解密入口的类名与方法名由 `key`、variant、算法配置派生（不再固定为 `StringBlur`/`decrypt`）：配置不变则名字不变，不影响增量构建；不同项目或不同 key 的入口互不相同，针对固定入口的通用 hook 脚本会失效。
 
 ## 推荐项目
 

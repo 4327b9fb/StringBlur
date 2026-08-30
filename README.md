@@ -216,6 +216,7 @@ AGP 7.x or newer is recommended. For new projects, use AGP and Gradle 8.x; for m
 - Annotation string parameters cannot be replaced with runtime decryption calls, so they are not encrypted as ordinary strings.
 - Resources, manifests, assets, and raw files are outside the class ASM processing scope.
 - The plugin uses `InstrumentationScope.ALL` by default, so dependency classes are also processed and large dependency graphs can increase build time.
+- The runtime decryption entry class and method names are derived from the key, variant, and mode configuration (no longer fixed `StringBlur`/`decrypt`). Names stay stable while the configuration is unchanged, so incremental builds are unaffected; different projects or keys get different entries, which defeats generic hook scripts that target the fixed entry.
 
 ## Related project
 

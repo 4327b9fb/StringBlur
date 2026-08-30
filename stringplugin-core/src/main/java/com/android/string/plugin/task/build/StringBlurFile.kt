@@ -8,30 +8,36 @@ import com.squareup.javawriter.JavaWriter
 import javax.lang.model.element.Modifier
 
 /**
- * 生成解密调用类，内容见[com.android.string.plugin.demo_files.StringBlur]
+ * 生成解密调用类，内容见[com.android.string.plugin.demo_files.StringBlur]。
+ * 类名与解密方法名由[com.android.string.plugin.util.EntryNames]按配置派生，
+ * 不再使用固定的 StringBlur/decrypt。
  * @author chancey
  * @date   2023/9/5   17:24
  **/
 class StringBlurFile : BaseFile() {
 
-    override fun create(path: java.io.File, applicationId: String, modes: List<Mode>) {
-        val file = java.io.File(path, getFileName(applicationId))
+    fun create(path: java.io.File, applicationId: String, modes: List<Mode>, className: String, methodName: String) {
+        val file = java.io.File(path, "$className.java")
         JavaWriter(java.io.FileWriter(file)).use {
-            write(it, applicationId, modes)
+            write(it, applicationId, modes, className, methodName)
         }
     }
 
-    override fun write(writer: JavaWriter, applicationId: String, mode: Mode) {
-        write(writer, applicationId, listOf(mode))
+    override fun create(path: java.io.File, applicationId: String, modes: List<Mode>) {
+        create(path, applicationId, modes, Constant.PLUGIN_CLASS_NAME, "decrypt")
     }
 
-    private fun write(writer: JavaWriter, applicationId: String, modes: List<Mode>) {
+    override fun write(writer: JavaWriter, applicationId: String, mode: Mode) {
+        write(writer, applicationId, listOf(mode), Constant.PLUGIN_CLASS_NAME, "decrypt")
+    }
+
+    private fun write(writer: JavaWriter, applicationId: String, modes: List<Mode>, className: String, methodName: String) {
         val pkg = Constant.PLUGIN_CLASS_PACKAGE.format(applicationId)
         val imports = modes.map { ModeUtils.getEncodeImplClassFilePath(it, applicationId) }
         writer.emitPackage(pkg)
             .emitImports(imports)
             .beginType(
-                Constant.PLUGIN_CLASS_NAME,
+                className,
                 "class",
                 mutableSetOf(Modifier.PUBLIC, Modifier.FINAL),
             )
@@ -47,29 +53,7 @@ class StringBlurFile : BaseFile() {
         writer
             .beginMethod(
                 String::class.java.simpleName,
-                "decrypt",
-                mutableSetOf(Modifier.PUBLIC, Modifier.STATIC),
-                String::class.java.simpleName,
-                "value",
-                String::class.java.simpleName,
-                "key"
-            )
-            .emitStatement("return decrypt(value, key, 0)")
-            .endMethod()
-            .beginMethod(
-                String::class.java.simpleName,
-                "decrypt",
-                mutableSetOf(Modifier.PUBLIC, Modifier.STATIC),
-                ByteArray::class.java.simpleName,
-                "value",
-                ByteArray::class.java.simpleName,
-                "key"
-            )
-            .emitStatement("return decrypt(value, key, 0)")
-            .endMethod()
-            .beginMethod(
-                String::class.java.simpleName,
-                "decrypt",
+                methodName,
                 mutableSetOf(Modifier.PUBLIC, Modifier.STATIC),
                 String::class.java.simpleName,
                 "value",
@@ -82,7 +66,7 @@ class StringBlurFile : BaseFile() {
             .endMethod()
             .beginMethod(
                 String::class.java.simpleName,
-                "decrypt",
+                methodName,
                 mutableSetOf(Modifier.PUBLIC, Modifier.STATIC),
                 ByteArray::class.java.simpleName,
                 "value",

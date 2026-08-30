@@ -33,9 +33,10 @@ abstract class StringBlurClassTransform :
         return with(parameters.get()) {
             StringBlurClassVisitor(
                 nextClassVisitor,
+                wrapperClass.get(),
+                wrapperMethod.get(),
                 key.get(),
                 bytesMode.get(),
-                applicationId.get(),
                 modes.get(),
                 reportPath.orNull,
                 minLength.get(),

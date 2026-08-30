@@ -1,6 +1,5 @@
 package com.android.string.plugin.trasform
 
-import com.android.string.plugin.data.Constant
 import com.android.string.plugin.field.StringFiled
 import com.android.string.plugin.mode.BytesMode
 import com.android.string.plugin.mode.Mode
@@ -21,7 +20,8 @@ import kotlin.random.Random
  * @date   2023/9/6   22:54
  **/
 class ClassVisitorController(
-    applicationId: String,
+    private val wrapperClass: String,
+    private val wrapperMethod: String,
     private val key: String,
     private val bytesMode: BytesMode,
     private val modes: List<Mode>,
@@ -32,8 +32,7 @@ class ClassVisitorController(
     private val securityWeight: Double = 0.5
 ) {
     private val smartSelector = SmartAlgorithmSelector()
-    private val stringBlurClassName =
-        Constant.PLUGIN_CLASS_FILE_PATH.format(applicationId).replace(".", "/")
+    private val asmWriter = AsmWriter(wrapperClass, wrapperMethod)
     var currentClassName: String? = null
     val staticFinalFields = mutableListOf<StringFiled>()
     val staticFields = mutableListOf<StringFiled>()
@@ -155,11 +154,11 @@ class ClassVisitorController(
 
     private fun writeByString(data: String?, stringBlurWrapper: com.android.string.plugin.IString, modeIndex: Int, mv: MethodVisitor) {
         val encodeText = stringBlurWrapper.encryptString(data, key)
-        AsmWriter(stringBlurClassName).write(encodeText, key, modeIndex, mv)
+        asmWriter.write(encodeText, key, modeIndex, mv)
     }
 
     private fun writeByBytes(data: String?, stringBlurWrapper: com.android.string.plugin.IString, modeIndex: Int, mv: MethodVisitor) {
         val encodeText = stringBlurWrapper.encryptBytes(data, key)
-        AsmWriter(stringBlurClassName).write(encodeText, key, modeIndex, mv)
+        asmWriter.write(encodeText, key, modeIndex, mv)
     }
 }

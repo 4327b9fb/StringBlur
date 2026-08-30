@@ -48,7 +48,7 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
         modeList.forEach { mode ->
             ModeUtils.getEncodeImplFile(mode).create(path, appId, mode)
         }
-        StringBlurFile().create(path, appId, modeList)
+        StringBlurFile().create(path, appId, modeList, wrapperClassName.get(), wrapperMethodName.get())
 
         StringBlurReport.generateSummary(reportFile.absolutePath)
         Logger.log("StringBlur performance report generated: ${reportFile.absolutePath}")
@@ -72,6 +72,12 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
     @get:Input
     abstract val modes: ListProperty<Mode>
 
+    @get:Input
+    abstract val wrapperClassName: Property<String>
+
+    @get:Input
+    abstract val wrapperMethodName: Property<String>
+
     companion object {
         private fun String.capitalizeCompat(): String {
             return replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
@@ -83,7 +89,9 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
             applicationId: Provider<String>,
             modes: List<Mode>,
             reportFileProvider: Provider<java.io.File>,
-            bytesMode: BytesMode
+            bytesMode: BytesMode,
+            wrapperClassName: String,
+            wrapperMethodName: String
         ) {
             val name = variant.name.capitalizeCompat()
             val taskName = "generate${Constant.PLUGIN_CLASS_NAME}$name"
@@ -93,6 +101,8 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
                 task.bytesMode.set(bytesMode)
                 task.reportPath.fileProvider(reportFileProvider)
                 task.modes.addAll(modes)
+                task.wrapperClassName.set(wrapperClassName)
+                task.wrapperMethodName.set(wrapperMethodName)
             }
             variant.sources.java?.addGeneratedSourceDirectory(provider, StringBlurTask::dir)
         }

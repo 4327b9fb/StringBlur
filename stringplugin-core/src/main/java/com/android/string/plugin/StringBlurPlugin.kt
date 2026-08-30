@@ -7,6 +7,7 @@ import com.android.build.api.variant.LibraryAndroidComponentsExtension
 import com.android.string.plugin.data.Constant
 import com.android.string.plugin.task.StringBlurTask
 import com.android.string.plugin.trasform.StringBlurClassTransform
+import com.android.string.plugin.util.EntryNames
 import com.android.string.plugin.util.Logger
 import com.android.string.plugin.util.ModeUtils
 import com.android.string.plugin.util.generator.KeyGenerator
@@ -46,6 +47,18 @@ class StringBlurPlugin : Plugin<Project> {
 
             val applicationId = variant.namespace
             val modes = ModeUtils.resolveModes(stringblur.modes)
+            // 解密入口按配置派生：配置不变名字不变（保证增量构建），
+            // 不同项目/key/variant 的入口互不相同，通用 hook 脚本无法命中
+            val (wrapperClassName, wrapperMethodName) = EntryNames.derive(
+                listOf(
+                    resolvedKey,
+                    variant.name,
+                    applicationId,
+                    modes.joinToString(",") { it.name },
+                    stringblur.bytesMode.name
+                ).joinToString("|")
+            )
+            val wrapperClass = "${Constant.PLUGIN_CLASS_PACKAGE.format(applicationId).replace(".", "/")}/$wrapperClassName"
             val reportFile = target.layout.buildDirectory
                 .file("reports/${Constant.PLUGIN_NAME}/${variant.name}.txt")
             val reportPathString = reportFile.map { it.asFile.absolutePath }
@@ -55,7 +68,7 @@ class StringBlurPlugin : Plugin<Project> {
                 StringBlurClassTransform::class.java,
                 InstrumentationScope.ALL
             ) { params ->
-                params.setParams(generator, applicationId, stringblur, variant.name, reportPathString, modes)
+                params.setParams(generator, applicationId, stringblur, variant.name, reportPathString, modes, wrapperClass, wrapperMethodName)
             }
 
             variant.instrumentation.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_INSTRUMENTED_CLASSES)
@@ -66,7 +79,9 @@ class StringBlurPlugin : Plugin<Project> {
                 applicationId,
                 modes,
                 reportPathFile,
-                stringblur.bytesMode
+                stringblur.bytesMode,
+                wrapperClassName,
+                wrapperMethodName
             )
         }
 

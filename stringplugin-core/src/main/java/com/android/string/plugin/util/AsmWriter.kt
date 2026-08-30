@@ -8,7 +8,7 @@ import org.objectweb.asm.Type
  * @author chancey
  * @date   2024/1/12   14:08
  **/
-class AsmWriter(private val className: String) {
+class AsmWriter(private val className: String, private val methodName: String = "decrypt") {
 
     fun write(data: String, key: String, mv: MethodVisitor) {
         write(data, key, 0, mv)
@@ -21,7 +21,7 @@ class AsmWriter(private val className: String) {
         mv.visitMethodInsn(
             Opcodes.INVOKESTATIC,
             className,
-            "decrypt",
+            methodName,
             "(Ljava/lang/String;Ljava/lang/String;I)Ljava/lang/String;",
             false
         )
@@ -38,7 +38,7 @@ class AsmWriter(private val className: String) {
         mv.visitMethodInsn(
             Opcodes.INVOKESTATIC,
             className,
-            "decrypt",
+            methodName,
             "([B[BI)Ljava/lang/String;",
             false
         )

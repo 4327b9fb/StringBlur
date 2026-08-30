@@ -14,9 +14,10 @@ import org.objectweb.asm.Opcodes
  **/
 class StringBlurClassVisitor(
     cv: ClassVisitor,
+    wrapperClass: String,
+    wrapperMethod: String,
     key: String,
     bytesMode: BytesMode,
-    applicationId: String,
     modes: List<Mode>,
     reportPath: String?,
     minLength: Int,
@@ -24,7 +25,7 @@ class StringBlurClassVisitor(
     performanceWeight: Double,
     securityWeight: Double,
 ) : ClassVisitor(Opcodes.ASM9, cv) {
-    private val controller = ClassVisitorController(applicationId, key, bytesMode, modes, reportPath, minLength, selectionStrategy, performanceWeight, securityWeight)
+    private val controller = ClassVisitorController(wrapperClass, wrapperMethod, key, bytesMode, modes, reportPath, minLength, selectionStrategy, performanceWeight, securityWeight)
     override fun visit(
         version: Int,
         access: Int,
