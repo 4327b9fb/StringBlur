@@ -202,10 +202,6 @@ stringblur {
     selectionStrategy = SelectionStrategy.SMART
     performanceWeight = 0.6
     securityWeight = 0.4
-    
-    // 增量编译
-    incremental = true
-    cacheDir = file("build/string-blur-cache")
 }
 ```
 
@@ -230,12 +226,8 @@ stringblur {
     
     // 智能算法选择
     selectionStrategy = SelectionStrategy.SMART
-    performanceWeight = 0.6
-    securityWeight = 0.4
-    
-    // 增量编译
-    incremental = true
-    cacheDir = file("build/string-blur-cache")
+    performanceWeight = 0.7  // 性能权重
+    securityWeight = 0.3     // 安全权重
 }
 ```
 
@@ -271,10 +263,6 @@ stringblur {
     performanceWeight = 0.7  // 70%性能权重
     securityWeight = 0.3     // 30%安全权重
     
-    // 增量编译配置
-    incremental = true
-    cacheDir = file("build/string-blur-cache")
-    
     // 白名单配置
     whiteList = listOf(
         "BuildConfig",
@@ -300,8 +288,6 @@ stringblur {
 | 选择策略 | `selectionStrategy = SelectionStrategy.SMART` | `selectionStrategy = SelectionStrategy.SMART` |
 | 性能权重 | `performanceWeight = 0.6` | `performanceWeight = 0.6` |
 | 安全权重 | `securityWeight = 0.4` | `securityWeight = 0.4` |
-| 增量编译 | `incremental = true` | `incremental = true` |
-| 缓存目录 | `cacheDir = file("xxx")` | `cacheDir = file("xxx")` |
 | 白名单 | `whiteList = ["xxx"]` | `whiteList = listOf("xxx")` |
 
 ### 详细说明
@@ -319,7 +305,7 @@ stringblur {
 
 ### 兼容性说明
 
-- **AGP 8.x**：支持所有新特性，包括最新的增量编译优化
+- **AGP 8.x**：支持所有新特性
 - **AGP 7.x**：完全支持所有功能
 - **AGP 6.x**：完全支持所有功能
 - **AGP 5.x**：基础功能可用，部分高级特性可能不可用
@@ -332,7 +318,7 @@ stringblur {
 | 维护中项目 | 7.x | 7.x |
 | 旧项目 | 6.x | 6.7+ |
 
-- `key`：加密密钥。支持字符串，也支持整数随机长度，例如 `key 16`。
+- `key`：加密密钥。支持字符串，也支持整数随机长度，例如 `key 16`。为避免明文密钥提交进版本库，`key` 也可以不写在构建脚本中，插件会按以下顺序回退读取：Gradle property `stringblur.key`（`gradle.properties` 或 `-P` 传入）→ 环境变量 `STRINGBLUR_KEY` → 项目根目录 `local.properties` 中的 `stringblur.key`；全部缺失时构建报错。
 - `enable`：是否开启字符串加密，默认 `false`。
 - `whiteList`：类名或包名前缀白名单，匹配到的 class 不处理。
 - `encodePackages`：加密范围。`null` 表示处理全部 class；空列表表示只处理当前 applicationId/namespace；非空列表会在当前 applicationId/namespace 基础上追加包名前缀。
@@ -343,8 +329,6 @@ stringblur {
 - `selectionStrategy`：算法选择策略，默认 `SelectionStrategy.RANDOM` 保持原有随机行为。可设置为 `SMART` 启用智能选择。
 - `performanceWeight`：性能权重 (0.0-1.0)，仅在 `SelectionStrategy.SMART` 时生效，默认 `0.5`。
 - `securityWeight`：安全权重 (0.0-1.0)，仅在 `SelectionStrategy.SMART` 时生效，默认 `0.5`。
-- `incremental`：启用增量编译优化，默认 `true`。开启后只处理变更的文件和字符串。
-- `cacheDir`：缓存目录，默认使用 `build/string-blur-cache`。
 
 ## 加密方式
 

@@ -14,6 +14,8 @@ import com.android.string.plugin.util.generator.RandomGenerator
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import java.io.File
+import java.util.Properties
 
 class StringBlurPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -35,11 +37,12 @@ class StringBlurPlugin : Plugin<Project> {
                 Logger.log("Debug模式下加密已关闭")
                 return@onVariants
             }
-            val generator = when (stringblur.key) {
-                is String -> KeyGenerator(stringblur.key as String)
-                is Int -> RandomGenerator(stringblur.key as Int)
+            val resolvedKey = resolveKey(target, stringblur)
+            val generator = when (resolvedKey) {
+                is String -> KeyGenerator(resolvedKey)
+                is Int -> RandomGenerator(resolvedKey)
                 else -> null
-            } ?: throw GradleException(Logger.text("加密key不能为空"))
+            } ?: throw GradleException(Logger.text("加密key不能为空，请通过 stringblur { key = ... }、gradle property stringblur.key、环境变量 STRINGBLUR_KEY 或 local.properties 配置"))
 
             val applicationId = variant.namespace
             val modes = ModeUtils.resolveModes(stringblur.modes)
@@ -75,5 +78,36 @@ class StringBlurPlugin : Plugin<Project> {
             "implementation",
             "io.github.dawnuu:common:$GRADLE_VERSION"
         )
+    }
+
+    /**
+     * 解析加密 key：优先使用扩展里显式配置的值；
+     * 未配置时依次回退 gradle property `stringblur.key`、环境变量 `STRINGBLUR_KEY`、
+     * 项目根目录 local.properties 的 `stringblur.key`，避免明文密钥提交进版本库。
+     */
+    private fun resolveKey(project: Project, extension: StringBlurExtension): Any? {
+        extension.key?.let { key ->
+            if (key is Int || (key is String && key.isNotBlank())) {
+                return key
+            }
+        }
+        project.findProperty("stringblur.key")?.toString()?.takeIf { it.isNotBlank() }?.let {
+            Logger.log("已使用 gradle property stringblur.key 作为加密key")
+            return it
+        }
+        System.getenv("STRINGBLUR_KEY")?.takeIf { it.isNotBlank() }?.let {
+            Logger.log("已使用环境变量 STRINGBLUR_KEY 作为加密key")
+            return it
+        }
+        val localPropertiesFile = File(project.rootDir, "local.properties")
+        if (localPropertiesFile.isFile) {
+            val props = Properties()
+            localPropertiesFile.inputStream().use { props.load(it) }
+            props.getProperty("stringblur.key")?.takeIf { it.isNotBlank() }?.let {
+                Logger.log("已使用 local.properties 中的 stringblur.key 作为加密key")
+                return it
+            }
+        }
+        return null
     }
 }

@@ -148,9 +148,6 @@ stringblur {
     selectionStrategy = SelectionStrategy.SMART
     performanceWeight = 0.7
     securityWeight = 0.3
-
-    incremental = true
-    cacheDir = file("build/string-blur-cache")
 }
 ```
 
@@ -158,7 +155,7 @@ Groovy DSL accepts the same properties. Use lists such as `modes = [Mode.XOR, Mo
 
 | Option | Description | Default |
 | --- | --- | --- |
-| `key` | Encryption key; accepts a string or a random integer length, for example `key 16`. | — |
+| `key` | Encryption key; accepts a string or a random integer length, for example `key 16`. To keep the key out of version control, it may also be omitted from the build script — the plugin then reads it in this order: Gradle property `stringblur.key` (gradle.properties or `-P`), environment variable `STRINGBLUR_KEY`, then `stringblur.key` in the project-root `local.properties`. | — |
 | `enable` | Enables string encryption. | `false` |
 | `whiteList` | Class-name or package-prefix exclusions. | — |
 | `encodePackages` | Processing scope. `null` processes all classes; an empty list processes only the current `applicationId`/`namespace`; non-empty lists add package prefixes. | — |
@@ -168,8 +165,6 @@ Groovy DSL accepts the same properties. Use lists such as `modes = [Mode.XOR, Mo
 | `enableWhenDebug` | Also encrypt debug builds. | `false` |
 | `selectionStrategy` | Mode-selection strategy. | `SelectionStrategy.RANDOM` |
 | `performanceWeight` / `securityWeight` | SMART-strategy weights from 0.0 to 1.0. | `0.5` / `0.5` |
-| `incremental` | Process only changed files and strings when possible. | `true` |
-| `cacheDir` | Incremental-build cache directory. | `build/string-blur-cache` |
 
 ## Encryption modes
 
