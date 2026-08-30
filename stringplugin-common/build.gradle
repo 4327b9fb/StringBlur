@@ -13,7 +13,7 @@ def getVersionFromGradleProperties() {
             return version
         }
     }
-    return "1.0.1-SNAPSHOT" // 默认回退
+    return "1.0.2-SNAPSHOT" // 默认回退
 }
 
 // 生成包含VERSION的Kotlin文件，这样插件运行时就能访问了

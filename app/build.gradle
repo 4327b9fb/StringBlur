@@ -52,10 +52,32 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
 }
 
-//stringblur {
-//    key "gc2RibGA6EQObn0w"
-//    enable true
-//    whiteList = []
-//    pkg "encode.test.fafaf"
-//    alias "ZiFuChuanEncode"
-//}
+// Uncomment the following imports and plugin application to enable StringBlur in this sample app.
+// import com.android.string.plugin.mode.BytesMode
+// import com.android.string.plugin.mode.Mode
+// import com.android.string.plugin.mode.SelectionStrategy
+//
+// stringblur {
+//     // Or omit this line and configure stringblur.key in local.properties,
+//     // gradle.properties/-P, or the STRINGBLUR_KEY environment variable.
+//     key = "my-project-key-2024"
+//     enable = true
+//
+//     // Scope and exclusions.
+//     encodePackages = ["com.example.myapplication"]
+//     whiteList = ["BuildConfig", "R", "R2"]
+//
+//     // Encryption representation and algorithms.
+//     modes = [Mode.XOR_SIMD, Mode.FAST_ROT, Mode.REVERSE]
+//     bytesMode = BytesMode.RANDOM
+//     minLength = 3
+//
+//     // Build variant behavior.
+//     enableWhenDebug = false
+//     skipSensitiveApi = true
+//
+//     // Optional smart algorithm selection.
+//     selectionStrategy = SelectionStrategy.SMART
+//     performanceWeight = 0.7
+//     securityWeight = 0.3
+// }

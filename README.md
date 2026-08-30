@@ -6,13 +6,22 @@
 
 StringBlur is an Android Gradle plugin that encrypts string constants in class files during the build and decrypts them automatically at runtime.
 
+## Migration to Maven Central
+
+This migration replaces the previous custom GitHub Maven repository with Maven Central. It changes the repository and publication coordinates; the source package remains unchanged.
+
+| Item | Before migration | After migration |
+| --- | --- | --- |
+| Repository | Previous custom GitHub Maven repository (removed) | `mavenCentral()` |
+| Plugin coordinate | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.1` |
+| Plugin IDs | `stringblur` | `io.github.dawnuu.stringblur` (Plugins DSL); `stringblur` (buildscript) |
+| Source packages | `com.android.string.plugin` | `com.android.string.plugin` |
+
 ## Installation
 
 ### Plugins DSL / Version Catalog
 
-> **Current 1.0.1:** The plugin marker is published under the authorized plugin ID `io.github.dawnuu.stringblur`. The legacy ID `stringblur` remains available through the `buildscript` setup below.
-
-Configure the plugin repository in `settings.gradle(.kts)`:
+Configure the plugin repository in `settings.gradle` or `settings.gradle.kts`:
 
 ```groovy
 pluginManagement {
@@ -24,7 +33,7 @@ pluginManagement {
 }
 ```
 
-Declare and apply the plugin with a version catalog:
+Declare the plugin with a version catalog:
 
 ```toml
 # gradle/libs.versions.toml
@@ -34,6 +43,8 @@ stringblur = "1.0.1"
 [plugins]
 stringblur = { id = "io.github.dawnuu.stringblur", version.ref = "stringblur" }
 ```
+
+Apply it in the root and application/library module build files:
 
 ```kotlin
 // Root build.gradle.kts
@@ -49,7 +60,7 @@ plugins {
 
 The equivalent Groovy DSL uses `alias(libs.plugins.stringblur)` in `build.gradle`.
 
-Without a version catalog, use:
+Without a version catalog:
 
 ```kotlin
 plugins {
@@ -57,75 +68,9 @@ plugins {
 }
 ```
 
-### `buildscript` (legacy ID)
-
-```groovy
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'io.github.dawnuu:stringblur:1.0.1'
-    }
-}
-
-// Module build.gradle
-apply plugin: 'stringblur'
-```
-
-For Kotlin DSL, use `classpath("io.github.dawnuu:stringblur:1.0.1")` and `apply(plugin = "stringblur")`.
-
-## Migration to Maven Central
-
-> **Migration:** The custom GitHub Maven repository is replaced by Maven Central. This is a repository and publication-coordinate migration; the legacy `stringblur` ID remains available for `buildscript`, while the authorized namespaced ID is used by Plugins DSL.
->
-> **1.0.0 notice:** The already-published `1.0.0` remains immutable. Use `1.0.1`, which fixes the runtime dependency coordinate and publishes the namespaced plugin marker.
-
-| Item | Before migration | After migration |
-| --- | --- | --- |
-| Repository | Previous custom GitHub Maven repository (removed) | `mavenCentral()` |
-| Plugin coordinate | `com.android.string.plugin:stringblur:2.1.0` | `io.github.dawnuu:stringblur:1.0.1` |
-| Plugin IDs | `stringblur` | `io.github.dawnuu.stringblur` (Plugins DSL); `stringblur` (buildscript) |
-| Source packages | `com.android.string.plugin` | `com.android.string.plugin` |
-
-### Previous `2.1.0` Plugins DSL setup
-
-For historical reference, the old Kotlin DSL plugin declaration was:
-
-```kotlin
-// Module build.gradle.kts
-plugins {
-    id("stringblur") version "2.1.0"
-}
-```
-
-The `id("stringblur")` example above is for the previous `2.1.0` setup only. For current `1.0.1`, use `id("io.github.dawnuu.stringblur")` with Plugins DSL or the `buildscript` setup above.
-
-### Maven Central coordinates
-
-After publication, the artifacts use these Maven Central coordinates:
-
-- Gradle plugin: `io.github.dawnuu:stringblur:1.0.1`
-- Shared API: `io.github.dawnuu:common:1.0.1`
-
-The Java/Kotlin source packages remain under `com.android.string.plugin`; only the Maven publication coordinates use `io.github.dawnuu`.
-
-### Custom deployment name
-
-Published deployments cannot be renamed. For future releases, use the custom uploader to name the Central deployment `StringBlur-<VERSION>`:
-
-```bash
-./scripts/publish-central.sh
-```
-
-Set `CENTRAL_DEPLOYMENT_NAME` to override the name, use `--dry-run` to build the bundle without uploading, or use `--automatic` to request automatic release after validation.
-
-## License
-
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
-
 ## Configuration
+
+### Kotlin DSL (`build.gradle.kts`)
 
 ```kotlin
 import com.android.string.plugin.mode.BytesMode
@@ -133,55 +78,114 @@ import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.SelectionStrategy
 
 stringblur {
+    // Encryption key. Use a string, or an integer for a random key length.
+    // Omit this line to resolve the key in this order:
+    // 1. gradle.properties or -Pstringblur.key=your-key
+    // 2. Environment variable STRINGBLUR_KEY=your-key
+    // 3. Root local.properties: stringblur.key=your-key
     key = "my-project-key-2024"
+    // Master switch; disabled by default.
     enable = true
-    minLength = 3
-    enableWhenDebug = false
 
-    // Limit processing to these packages. Omit for all classes.
+    // Empty list: current applicationId/namespace; null: all classes;
+    // non-empty list: add these package prefixes to the current scope.
     encodePackages = listOf("com.example")
+    // Class names or package prefixes to exclude.
     whiteList = listOf("BuildConfig", "R", "R2")
 
+    // Available algorithms; an empty list falls back to Mode.DEFAULT.
     modes = listOf(Mode.XOR_SIMD, Mode.FAST_ROT, Mode.REVERSE)
+    // STRING, BYTES, or RANDOM encrypted-data representation.
     bytesMode = BytesMode.RANDOM
+    // Skip strings shorter than this value; negative values become 0.
+    minLength = 3
 
+    // Also encrypt debug variants when enabled.
+    enableWhenDebug = false
+    // Keep strings passed to sensitive APIs plaintext; heuristic detection.
+    skipSensitiveApi = true
+
+    // RANDOM, SMART, PERFORMANCE, or SECURITY algorithm selection.
     selectionStrategy = SelectionStrategy.SMART
+    // Used by SMART; recommended range is 0.0–1.0.
     performanceWeight = 0.7
+    // Used by SMART; recommended range is 0.0–1.0.
     securityWeight = 0.3
 }
 ```
 
-Groovy DSL accepts the same properties. Use lists such as `modes = [Mode.XOR, Mode.SHIFT]` and `whiteList = ['BuildConfig']`.
+### Groovy DSL (`build.gradle`)
 
-| Option | Description | Default |
-| --- | --- | --- |
-| `key` | Encryption key; accepts a string or a random integer length, for example `key 16`. To keep the key out of version control, it may also be omitted from the build script — the plugin then reads it in this order: Gradle property `stringblur.key` (gradle.properties or `-P`), environment variable `STRINGBLUR_KEY`, then `stringblur.key` in the project-root `local.properties`. | — |
-| `enable` | Enables string encryption. | `false` |
-| `whiteList` | Class-name or package-prefix exclusions. | — |
-| `encodePackages` | Processing scope. `null` processes all classes; an empty list processes only the current `applicationId`/`namespace`; non-empty lists add package prefixes. | — |
-| `modes` | Encryption modes. A mode is selected per string. | `[Mode.DEFAULT]` |
-| `bytesMode` | Encrypted-data representation. | `BytesMode.STRING` |
-| `minLength` | Strings shorter than this are skipped. | `0` |
-| `enableWhenDebug` | Also encrypt debug builds. | `false` |
-| `selectionStrategy` | Mode-selection strategy. | `SelectionStrategy.RANDOM` |
-| `performanceWeight` / `securityWeight` | SMART-strategy weights from 0.0 to 1.0. | `0.5` / `0.5` |
-| `skipSensitiveApi` | Keeps strings that flow into sensitive APIs (reflection, `System.loadLibrary`, `Intent.setClassName`, `PackageManager` lookups) as plaintext, and reports them with `reason=sensitiveApi`. Prevents crashes in environments without the decryption chain (e.g. local unit tests). Default `true`; set to `false` to encrypt everything. Detection is heuristic: the string must be the last argument pushed before the call. | `true` |
+```groovy
+import com.android.string.plugin.mode.BytesMode
+import com.android.string.plugin.mode.Mode
+import com.android.string.plugin.mode.SelectionStrategy
+
+stringblur {
+    // Encryption key. Use a string, or an integer for a random key length.
+    // Omit this line to resolve the key in this order:
+    // 1. gradle.properties or -Pstringblur.key=your-key
+    // 2. Environment variable STRINGBLUR_KEY=your-key
+    // 3. Root local.properties: stringblur.key=your-key
+    key = "my-project-key-2024"
+    // Master switch; disabled by default.
+    enable = true
+
+    // Empty list: current applicationId/namespace; null: all classes;
+    // non-empty list: add these package prefixes to the current scope.
+    encodePackages = ["com.example"]
+    // Class names or package prefixes to exclude.
+    whiteList = ["BuildConfig", "R", "R2"]
+
+    // Available algorithms; an empty list falls back to Mode.DEFAULT.
+    modes = [Mode.XOR_SIMD, Mode.FAST_ROT, Mode.REVERSE]
+    // STRING, BYTES, or RANDOM encrypted-data representation.
+    bytesMode = BytesMode.RANDOM
+    // Skip strings shorter than this value; negative values become 0.
+    minLength = 3
+
+    // Also encrypt debug variants when enabled.
+    enableWhenDebug = false
+    // Keep strings passed to sensitive APIs plaintext; heuristic detection.
+    skipSensitiveApi = true
+
+    // RANDOM, SMART, PERFORMANCE, or SECURITY algorithm selection.
+    selectionStrategy = SelectionStrategy.SMART
+    // Used by SMART; recommended range is 0.0–1.0.
+    performanceWeight = 0.7
+    // Used by SMART; recommended range is 0.0–1.0.
+    securityWeight = 0.3
+}
+```
 
 ## Encryption modes
 
-- `Mode.DEFAULT`: key-based byte addition/subtraction.
-- `Mode.XOR`: key-based XOR.
-- `Mode.REVERSE`: reverses byte order.
+- `Mode.DEFAULT`: key-based byte addition/subtraction; the compatibility-oriented default.
+- `Mode.XOR`: basic key-based XOR transformation.
+- `Mode.REVERSE`: reverses byte order; very fast for general-purpose use.
 - `Mode.SHIFT`: key-based byte shifting.
-- `Mode.XOR_SHIFT`: combines XOR and SHIFT.
-- `Mode.XOR_SIMD`: SIMD-optimized batch XOR, recommended for performance-sensitive code.
-- `Mode.FAST_ROT`: fast bit-rotation algorithm for frequent short strings.
+- `Mode.XOR_SHIFT`: combines XOR and SHIFT for stronger protection.
+- `Mode.XOR_SIMD`: batch XOR optimized for medium and long strings and performance-sensitive code.
+- `Mode.FAST_ROT`: fast bit rotation, suitable for frequent short strings.
 
-Encrypted data can be stored as a string (`BytesMode.STRING`), a byte array (`BytesMode.BYTES`), or randomly as either representation (`BytesMode.RANDOM`).
+## Encrypted data representation
+
+- `BytesMode.STRING`: stores encrypted data as a string constant.
+- `BytesMode.BYTES`: stores encrypted data as a byte array.
+- `BytesMode.RANDOM`: randomly chooses `STRING` or `BYTES` for each string.
 
 ## Smart mode selection
 
-`SelectionStrategy.RANDOM` preserves the original random behavior. The optional `SMART`, `PERFORMANCE`, and `SECURITY` strategies select modes based on string characteristics or the desired priority.
+`SelectionStrategy.RANDOM` is the default and preserves random mode selection. Use `SMART`, `PERFORMANCE`, or `SECURITY` when the mode should follow content characteristics or a priority.
+
+| Strategy | Recommendation |
+| --- | --- |
+| `RANDOM` | Default choice when compatibility and behavior preservation matter. |
+| `SMART` | Recommended for most projects; balances string characteristics, performance, and security. |
+| `PERFORMANCE` | Use for performance-sensitive applications; selects the fastest available mode. |
+| `SECURITY` | Use for security-sensitive strings; selects the strongest available mode. |
+
+For `SMART`, the default weight is `0.5` for both performance and security. Adjust the weights when one priority matters more, for example `0.7` performance and `0.3` security.
 
 | String characteristic | Preferred mode |
 | --- | --- |
@@ -191,67 +195,10 @@ Encrypted data can be stored as a string (`BytesMode.STRING`), a byte array (`By
 | Sensitive content | `XOR_SHIFT` |
 | Mostly numeric or binary data | `FAST_ROT` or `XOR_SIMD` |
 
-## Annotation-based control
-
-The `io.github.dawnuu:common` dependency (added automatically by the plugin) ships two annotations for fine-grained control:
-
-| Annotation | Targets | Effect |
-| --- | --- | --- |
-| `@KeepString` | class / method / field | Strings in scope stay plaintext, reported with `reason=keepString` |
-| `@EncryptString` | class / method / field | Force encryption, overriding `minLength` and the sensitive-API skip |
-
-```kotlin
-import com.android.string.plugin.KeepString
-import com.android.string.plugin.EncryptString
-
-class Config {
-    @KeepString                      // field value stays plaintext
-    private val appId = "com.example.app"
-
-    @EncryptString                   // force-encrypt short strings
-    fun token(): String = "abc"
-
-    @KeepString                      // strings in this method are not encrypted
-    fun className(): String = "com.example.MainActivity"
-}
-```
-
-Notes:
-
-- The annotations use `CLASS` retention and are only read at build time.
-- Kotlin property annotations land on the backing field; properties without one need `@get:KeepString`.
-- Method-level annotations do not cover synthetic lambda methods (they follow the class-level annotation).
-- Field-level `@EncryptString` only applies to static String constants with a ConstantValue.
-
-## Encryption report
-
-Each variant produces a report at:
-
-```text
-build/reports/stringblur/{variant}.txt
-```
-
-The report includes scan and encryption counts, duration and throughput, algorithm and string-length distributions, plus optimization suggestions. Its events are `SCAN`, `SKIP`, `ENCRYPT`, and `IGNORE`.
-
-## AGP compatibility
-
-| AGP | Minimum Gradle | Minimum JDK | Status |
-| --- | --- | --- | --- |
-| 8.x | 8.x | 17 | Fully supported |
-| 7.x | 7.x | 11 | Fully supported |
-| 6.x | 6.7+ | 11 | Fully supported |
-| 5.x | 5.6.4+ | 8 | Partial support |
-
-AGP 7.x or newer is recommended. For new projects, use AGP and Gradle 8.x; for maintained projects, 7.x; for legacy projects, AGP 6.x with Gradle 6.7+.
-
-## Notes
-
-- Annotation string parameters cannot be replaced with runtime decryption calls, so they are not encrypted as ordinary strings.
-- Resources, manifests, assets, and raw files are outside the class ASM processing scope.
-- The plugin uses `InstrumentationScope.ALL` by default, so dependency classes are also processed and large dependency graphs can increase build time.
-- The runtime decryption entry class and method names are derived from the key, variant, and mode configuration (no longer fixed `StringBlur`/`decrypt`). Names stay stable while the configuration is unchanged, so incremental builds are unaffected; different projects or keys get different entries, which defeats generic hook scripts that target the fixed entry.
-- Strings flowing into reflection or dynamic-loading APIs stay plaintext by default (see the `skipSensitiveApi` option).
-
 ## Related project
 
 - [AabResGuard](https://github.com/dawnuu/AabResGuard) — Android AAB resource obfuscation tool.
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
