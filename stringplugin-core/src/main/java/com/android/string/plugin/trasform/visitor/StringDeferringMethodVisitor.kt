@@ -20,10 +20,12 @@ import org.objectweb.asm.Opcodes
 abstract class StringDeferringMethodVisitor(
     mv: MethodVisitor,
     protected val controller: ClassVisitorController,
-    protected val methodName: String?
+    protected val methodName: String?,
+    private val sensitiveLdcOrdinals: Set<Int> = emptySet()
 ) : MethodVisitor(Opcodes.ASM9, mv) {
 
     private var pending: String? = null
+    private var ldcOrdinal: Int = 0
 
     // 暂存串是否处于 @KeepString 范围，在 LDC 时确定
     private var pendingKeep: Boolean = false
@@ -64,6 +66,13 @@ abstract class StringDeferringMethodVisitor(
 
     override fun visitLdcInsn(value: Any?) {
         flush()
+        val isSensitiveString = value is String && ldcOrdinal++ in sensitiveLdcOrdinals
+        if (isSensitiveString && !keepActive() && !forceActive()) {
+            controller.reportIgnored(methodName, value, REASON_SENSITIVE)
+            super.visitLdcInsn(value)
+            resetPendingState()
+            return
+        }
         if (value is String && !value.isEmpty() && (controller.overflow(value) || forceActive())) {
             pending = value
             pendingKeep = keepActive()

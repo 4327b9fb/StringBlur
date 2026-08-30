@@ -12,8 +12,9 @@ import org.objectweb.asm.Opcodes
 class InitMethodVisitor(
     mv: MethodVisitor,
     controller: ClassVisitorController,
-    methodName: String?
-) : StringDeferringMethodVisitor(mv, controller, methodName) {
+    methodName: String?,
+    sensitiveLdcOrdinals: Set<Int> = emptySet()
+) : StringDeferringMethodVisitor(mv, controller, methodName, sensitiveLdcOrdinals) {
 
     override fun flushPending(value: String, skipReason: String?) {
         // We don't care about whether the field is final or normal

@@ -18,9 +18,12 @@ dependencies {
     implementation gradleApi()
     implementation localGroovy()
     implementation "org.ow2.asm:asm:9.10.1"
+    implementation "org.ow2.asm:asm-tree:9.10.1"
+    implementation "org.ow2.asm:asm-analysis:9.10.1"
     implementation "com.squareup:javawriter:2.5.1"
     compileOnly "com.android.tools.build:gradle:8.13.2"
     implementation project(":stringplugin-common")
+    testImplementation "junit:junit:4.13.2"
 }
 
 

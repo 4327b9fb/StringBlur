@@ -13,8 +13,9 @@ import org.objectweb.asm.Opcodes
 class ClinitMethodVisitor(
     mv: MethodVisitor,
     controller: ClassVisitorController,
-    methodName: String?
-) : StringDeferringMethodVisitor(mv, controller, methodName) {
+    methodName: String?,
+    sensitiveLdcOrdinals: Set<Int> = emptySet()
+) : StringDeferringMethodVisitor(mv, controller, methodName, sensitiveLdcOrdinals) {
     private var temp: String? = null
 
     override fun visitCode() {

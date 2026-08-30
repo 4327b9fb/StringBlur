@@ -5,7 +5,7 @@ package com.android.string.plugin.trasform.visitor
  * 避免（如）单元测试、热修等缺失解密链路的环境在反射/动态加载处崩溃，
  * 同时保证这些字符串在崩溃日志、hook 工具中的可读性。
  *
- * 识别为单槽启发式：仅当字符串是调用前最后压入的操作数时命中。
+ * 具体参数的数据流由 [SensitiveStringAnalyzer] 分析；这里仅维护敏感 owner/name 白名单。
  *
  * @author chancey
  * @date   2026/8/30

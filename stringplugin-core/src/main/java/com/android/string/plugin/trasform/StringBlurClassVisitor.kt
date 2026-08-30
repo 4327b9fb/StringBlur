@@ -4,11 +4,13 @@ import com.android.string.plugin.data.Constant
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.BytesMode
 import com.android.string.plugin.mode.SelectionStrategy
+import com.android.string.plugin.trasform.visitor.SensitiveStringAnalyzer
 import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.FieldVisitor
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.tree.MethodNode
 
 /**
  * @author chancey
@@ -97,6 +99,15 @@ class StringBlurClassVisitor(
     ): MethodVisitor {
         val mv = super.visitMethod(access, name, descriptor, signature, exceptions)
             ?: return super.visitMethod(access, name, descriptor, signature, exceptions)
-        return controller.visitMethod(access, mv, name)
+        return object : MethodNode(Opcodes.ASM9, access, name, descriptor, signature, exceptions) {
+            override fun visitEnd() {
+                super.visitEnd()
+                val sensitiveLdcOrdinals = SensitiveStringAnalyzer.findSensitiveLdcOrdinals(
+                    controller.currentClassName,
+                    this
+                )
+                accept(controller.visitMethod(access, mv, name, sensitiveLdcOrdinals))
+            }
+        }
     }
 }

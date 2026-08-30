@@ -122,16 +122,21 @@ class ClassVisitorController(
         return !isClInitExists && staticFinalFields.any { !it.keep }
     }
 
-    fun visitMethod(access: Int, mv: MethodVisitor, name: String?): MethodVisitor {
+    fun visitMethod(
+        access: Int,
+        mv: MethodVisitor,
+        name: String?,
+        sensitiveLdcOrdinals: Set<Int> = emptySet()
+    ): MethodVisitor {
         return when (name) {
             // If clinit exists meaning the static fields (not final) would have be inited here.
             "<clinit>" -> {
                 isClInitExists = true
-                ClinitMethodVisitor(mv, this, name)
+                ClinitMethodVisitor(mv, this, name, sensitiveLdcOrdinals)
             }
             // Here init final(not static) and normal fields
-            "<init>" -> InitMethodVisitor(mv, this, name)
-            else -> NormalMethodVisitor(access, mv, this, name)
+            "<init>" -> InitMethodVisitor(mv, this, name, sensitiveLdcOrdinals)
+            else -> NormalMethodVisitor(access, mv, this, name, sensitiveLdcOrdinals)
         }
     }
 
