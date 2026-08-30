@@ -2,7 +2,6 @@ package com.android.string.plugin.trasform.visitor
 
 import com.android.string.plugin.trasform.ClassVisitorController
 import org.objectweb.asm.MethodVisitor
-import org.objectweb.asm.Opcodes
 
 /**
  * @author chancey
@@ -10,18 +9,17 @@ import org.objectweb.asm.Opcodes
  **/
 class InitMethodVisitor(
     mv: MethodVisitor,
-    private val controller: ClassVisitorController,
-    private val methodName: String?
-) :
-    MethodVisitor(Opcodes.ASM9, mv) {
+    controller: ClassVisitorController,
+    methodName: String?
+) : StringDeferringMethodVisitor(mv, controller, methodName) {
 
-    override fun visitLdcInsn(value: Any?) {
+    override fun flushPending(value: String, sensitive: Boolean) {
         // We don't care about whether the field is final or normal
-        if (value is String && controller.overflow(value)) {
-            controller.write(value, mv, methodName)
+        if (sensitive) {
+            controller.reportIgnored(methodName, value, "sensitiveApi")
+            writePlainLdc(value)
             return
         }
-        controller.reportIgnoredLdc(methodName, value)
-        super.visitLdcInsn(value)
+        controller.write(value, mv, methodName)
     }
 }

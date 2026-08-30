@@ -21,11 +21,12 @@ class StringBlurClassVisitor(
     modes: List<Mode>,
     reportPath: String?,
     minLength: Int,
+    skipSensitiveApi: Boolean,
     selectionStrategy: SelectionStrategy,
     performanceWeight: Double,
     securityWeight: Double,
 ) : ClassVisitor(Opcodes.ASM9, cv) {
-    private val controller = ClassVisitorController(wrapperClass, wrapperMethod, key, bytesMode, modes, reportPath, minLength, selectionStrategy, performanceWeight, securityWeight)
+    private val controller = ClassVisitorController(wrapperClass, wrapperMethod, key, bytesMode, modes, reportPath, minLength, skipSensitiveApi, selectionStrategy, performanceWeight, securityWeight)
     override fun visit(
         version: Int,
         access: Int,

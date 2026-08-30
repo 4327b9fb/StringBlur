@@ -165,6 +165,7 @@ Groovy DSL accepts the same properties. Use lists such as `modes = [Mode.XOR, Mo
 | `enableWhenDebug` | Also encrypt debug builds. | `false` |
 | `selectionStrategy` | Mode-selection strategy. | `SelectionStrategy.RANDOM` |
 | `performanceWeight` / `securityWeight` | SMART-strategy weights from 0.0 to 1.0. | `0.5` / `0.5` |
+| `skipSensitiveApi` | Keeps strings that flow into sensitive APIs (reflection, `System.loadLibrary`, `Intent.setClassName`, `PackageManager` lookups) as plaintext, and reports them with `reason=sensitiveApi`. Prevents crashes in environments without the decryption chain (e.g. local unit tests). Default `true`; set to `false` to encrypt everything. Detection is heuristic: the string must be the last argument pushed before the call. | `true` |
 
 ## Encryption modes
 
@@ -217,6 +218,7 @@ AGP 7.x or newer is recommended. For new projects, use AGP and Gradle 8.x; for m
 - Resources, manifests, assets, and raw files are outside the class ASM processing scope.
 - The plugin uses `InstrumentationScope.ALL` by default, so dependency classes are also processed and large dependency graphs can increase build time.
 - The runtime decryption entry class and method names are derived from the key, variant, and mode configuration (no longer fixed `StringBlur`/`decrypt`). Names stay stable while the configuration is unchanged, so incremental builds are unaffected; different projects or keys get different entries, which defeats generic hook scripts that target the fixed entry.
+- Strings flowing into reflection or dynamic-loading APIs stay plaintext by default (see the `skipSensitiveApi` option).
 
 ## Related project
 

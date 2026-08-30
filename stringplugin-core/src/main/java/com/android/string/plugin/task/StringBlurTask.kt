@@ -48,6 +48,12 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
         modeList.forEach { mode ->
             ModeUtils.getEncodeImplFile(mode).create(path, appId, mode)
         }
+        // 入口名按配置派生，配置变化会生成新名字；清掉旧包装类避免残留编译进 APK
+        path.listFiles { file ->
+            file.isFile &&
+                file.name != "${wrapperClassName.get()}.java" &&
+                (file.name.startsWith("Sb") || file.name == "${Constant.PLUGIN_CLASS_NAME}.java")
+        }?.forEach { it.delete() }
         StringBlurFile().create(path, appId, modeList, wrapperClassName.get(), wrapperMethodName.get())
 
         StringBlurReport.generateSummary(reportFile.absolutePath)
@@ -90,8 +96,8 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
             modes: List<Mode>,
             reportFileProvider: Provider<java.io.File>,
             bytesMode: BytesMode,
-            wrapperClassName: String,
-            wrapperMethodName: String
+            wrapperClassName: Provider<String>,
+            wrapperMethodName: Provider<String>
         ) {
             val name = variant.name.capitalizeCompat()
             val taskName = "generate${Constant.PLUGIN_CLASS_NAME}$name"

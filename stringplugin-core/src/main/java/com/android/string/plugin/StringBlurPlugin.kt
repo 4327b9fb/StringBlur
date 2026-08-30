@@ -45,20 +45,28 @@ class StringBlurPlugin : Plugin<Project> {
                 else -> null
             } ?: throw GradleException(Logger.text("加密key不能为空，请通过 stringblur { key = ... }、gradle property stringblur.key、环境变量 STRINGBLUR_KEY 或 local.properties 配置"))
 
-            val applicationId = variant.namespace
+            // AGP 8.13 起 namespace 为 Provider<String>，且在 onVariants 阶段不可 .get()，
+            // 全部入口名与包装类路径必须惰性求值，否则会得到 "property 'namespace'" 这类垃圾值
+            val applicationIdProvider = variant.namespace
             val modes = ModeUtils.resolveModes(stringblur.modes)
             // 解密入口按配置派生：配置不变名字不变（保证增量构建），
             // 不同项目/key/variant 的入口互不相同，通用 hook 脚本无法命中
-            val (wrapperClassName, wrapperMethodName) = EntryNames.derive(
-                listOf(
-                    resolvedKey,
-                    variant.name,
-                    applicationId,
-                    modes.joinToString(",") { it.name },
-                    stringblur.bytesMode.name
-                ).joinToString("|")
-            )
-            val wrapperClass = "${Constant.PLUGIN_CLASS_PACKAGE.format(applicationId).replace(".", "/")}/$wrapperClassName"
+            val wrapperNamesProvider = applicationIdProvider.map { appId ->
+                EntryNames.derive(
+                    listOf(
+                        resolvedKey,
+                        variant.name,
+                        appId,
+                        modes.joinToString(",") { it.name },
+                        stringblur.bytesMode.name
+                    ).joinToString("|")
+                )
+            }
+            val wrapperClassName = wrapperNamesProvider.map { it.first }
+            val wrapperMethodName = wrapperNamesProvider.map { it.second }
+            val wrapperClass = applicationIdProvider.zip(wrapperNamesProvider) { appId, names ->
+                "${Constant.PLUGIN_CLASS_PACKAGE.format(appId).replace(".", "/")}/${names.first}"
+            }
             val reportFile = target.layout.buildDirectory
                 .file("reports/${Constant.PLUGIN_NAME}/${variant.name}.txt")
             val reportPathString = reportFile.map { it.asFile.absolutePath }
@@ -68,7 +76,7 @@ class StringBlurPlugin : Plugin<Project> {
                 StringBlurClassTransform::class.java,
                 InstrumentationScope.ALL
             ) { params ->
-                params.setParams(generator, applicationId, stringblur, variant.name, reportPathString, modes, wrapperClass, wrapperMethodName)
+                params.setParams(generator, applicationIdProvider, stringblur, variant.name, reportPathString, modes, wrapperClass, wrapperMethodName)
             }
 
             variant.instrumentation.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_INSTRUMENTED_CLASSES)
@@ -76,7 +84,7 @@ class StringBlurPlugin : Plugin<Project> {
             StringBlurTask.execute(
                 target,
                 variant,
-                applicationId,
+                applicationIdProvider,
                 modes,
                 reportPathFile,
                 stringblur.bytesMode,

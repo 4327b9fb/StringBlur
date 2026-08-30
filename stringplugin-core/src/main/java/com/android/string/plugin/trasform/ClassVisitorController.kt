@@ -7,6 +7,7 @@ import com.android.string.plugin.report.StringBlurReport
 import com.android.string.plugin.trasform.visitor.ClinitMethodVisitor
 import com.android.string.plugin.trasform.visitor.InitMethodVisitor
 import com.android.string.plugin.trasform.visitor.NormalMethodVisitor
+import com.android.string.plugin.trasform.visitor.SensitiveApiDetector
 import com.android.string.plugin.util.AsmWriter
 import com.android.string.plugin.util.ModeUtils
 import com.android.string.plugin.util.SmartAlgorithmSelector
@@ -27,6 +28,7 @@ class ClassVisitorController(
     private val modes: List<Mode>,
     private val reportPath: String?,
     private val minLength: Int,
+    private val skipSensitiveApi: Boolean = true,
     private val selectionStrategy: SelectionStrategy = SelectionStrategy.RANDOM,
     private val performanceWeight: Double = 0.5,
     private val securityWeight: Double = 0.5
@@ -34,6 +36,10 @@ class ClassVisitorController(
     private val smartSelector = SmartAlgorithmSelector()
     private val asmWriter = AsmWriter(wrapperClass, wrapperMethod)
     var currentClassName: String? = null
+
+    fun isSensitiveCall(owner: String?, name: String?): Boolean {
+        return skipSensitiveApi && SensitiveApiDetector.isSensitive(owner, name)
+    }
     val staticFinalFields = mutableListOf<StringFiled>()
     val staticFields = mutableListOf<StringFiled>()
     val finalFields = mutableListOf<StringFiled>()

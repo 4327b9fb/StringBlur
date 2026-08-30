@@ -288,6 +288,7 @@ stringblur {
 | 选择策略 | `selectionStrategy = SelectionStrategy.SMART` | `selectionStrategy = SelectionStrategy.SMART` |
 | 性能权重 | `performanceWeight = 0.6` | `performanceWeight = 0.6` |
 | 安全权重 | `securityWeight = 0.4` | `securityWeight = 0.4` |
+| 敏感API跳过 | `skipSensitiveApi = true` | `skipSensitiveApi = true` |
 | 白名单 | `whiteList = ["xxx"]` | `whiteList = listOf("xxx")` |
 
 ### 详细说明
@@ -329,6 +330,7 @@ stringblur {
 - `selectionStrategy`：算法选择策略，默认 `SelectionStrategy.RANDOM` 保持原有随机行为。可设置为 `SMART` 启用智能选择。
 - `performanceWeight`：性能权重 (0.0-1.0)，仅在 `SelectionStrategy.SMART` 时生效，默认 `0.5`。
 - `securityWeight`：安全权重 (0.0-1.0)，仅在 `SelectionStrategy.SMART` 时生效，默认 `0.5`。
+- `skipSensitiveApi`：流入反射（`Class.forName`、`getDeclaredMethod` 等）、动态加载（`System.loadLibrary` 等）、`Intent.setClassName`、`PackageManager` 查询等敏感 API 的字符串自动保持明文并记录到报告（`reason=sensitiveApi`），避免解密链路缺失的环境（如本地单元测试）在反射处崩溃。默认 `true`；设为 `false` 则全量加密。识别为启发式：仅当字符串是调用前最后一个入参时命中。
 
 ## 加密方式
 
@@ -465,6 +467,7 @@ stringblur {
 - 资源、Manifest、assets、raw 等文件不属于 class ASM 处理范围。
 - 插件默认使用 `InstrumentationScope.ALL`，会处理项目 class 和依赖 class；依赖较多时构建耗时会增加。
 - 运行时解密入口的类名与方法名由 `key`、variant、算法配置派生（不再固定为 `StringBlur`/`decrypt`）：配置不变则名字不变，不影响增量构建；不同项目或不同 key 的入口互不相同，针对固定入口的通用 hook 脚本会失效。
+- 流入反射、动态加载等敏感 API 的字符串默认保持明文（见 `skipSensitiveApi` 配置）。
 
 ## 推荐项目
 

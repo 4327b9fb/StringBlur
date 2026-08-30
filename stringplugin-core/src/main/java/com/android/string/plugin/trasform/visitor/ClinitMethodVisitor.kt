@@ -11,11 +11,11 @@ import org.objectweb.asm.Opcodes
  **/
 class ClinitMethodVisitor(
     mv: MethodVisitor,
-    private val controller: ClassVisitorController,
-    private val methodName: String?
-) :
-    MethodVisitor(Opcodes.ASM9, mv) {
+    controller: ClassVisitorController,
+    methodName: String?
+) : StringDeferringMethodVisitor(mv, controller, methodName) {
     private var temp: String? = null
+
     override fun visitCode() {
         super.visitCode()
         // Here init static final fields.
@@ -33,16 +33,19 @@ class ClinitMethodVisitor(
         }
     }
 
-    override fun visitLdcInsn(value: Any?) {
+    override fun flushPending(value: String, sensitive: Boolean) {
         // Here init static or static final fields, but we must check field name int 'visitFieldInsn'
-        if (value is String && controller.overflow(value)) {
-            temp = value
-            controller.write(value, mv, methodName)
-        } else {
-            temp = null
-            controller.reportIgnoredLdc(methodName, value)
-            super.visitLdcInsn(value)
+        temp = value
+        if (sensitive) {
+            controller.reportIgnored(methodName, value, "sensitiveApi")
+            writePlainLdc(value)
+            return
         }
+        controller.write(value, mv, methodName)
+    }
+
+    override fun resetPendingState() {
+        temp = null
     }
 
     override fun visitFieldInsn(
@@ -51,6 +54,8 @@ class ClinitMethodVisitor(
         name: String?,
         descriptor: String?
     ) {
+        // 先冲刷暂存的 LDC，temp 才能反映即将 PUTSTATIC 的值
+        flush()
         if (opcode == Opcodes.PUTSTATIC &&
             descriptor == StringFiled.DESC &&
             controller.currentClassName == owner &&

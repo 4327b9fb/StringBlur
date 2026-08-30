@@ -54,6 +54,9 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
     abstract val wrapperMethod: Property<String>
 
     @get:Input
+    abstract val skipSensitiveApi: Property<Boolean>
+
+    @get:Input
     abstract val selectionStrategy: Property<SelectionStrategy>
 
     @get:Input
@@ -69,8 +72,8 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
         variantName: String,
         reportPath: Provider<String>,
         modes: List<Mode>,
-        wrapperClass: String,
-        wrapperMethod: String
+        wrapperClass: Provider<String>,
+        wrapperMethod: Provider<String>
     ) {
         this.key.set(generator.generate())
         this.bytesMode.set(extension.bytesMode)
@@ -81,6 +84,7 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
         this.reportPath.set(reportPath)
         this.wrapperClass.set(wrapperClass)
         this.wrapperMethod.set(wrapperMethod)
+        this.skipSensitiveApi.set(extension.skipSensitiveApi)
         this.selectionStrategy.set(extension.selectionStrategy)
         this.performanceWeight.set(extension.performanceWeight)
         this.securityWeight.set(extension.securityWeight)
