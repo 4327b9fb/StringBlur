@@ -2,10 +2,22 @@ package com.android.string.plugin.util
 
 import com.android.string.plugin.IString
 import com.android.string.plugin.data.Constant
-import com.android.string.plugin.demo_files.*
+import com.android.string.plugin.demo_files.DefaultEncodeImpl
+import com.android.string.plugin.demo_files.FastRotEncodeImpl
+import com.android.string.plugin.demo_files.ReverseEncodeImpl
+import com.android.string.plugin.demo_files.ShiftEncodeImpl
+import com.android.string.plugin.demo_files.XorEncodeImpl
+import com.android.string.plugin.demo_files.XorShiftEncodeImpl
+import com.android.string.plugin.demo_files.XorSimdEncodeImpl
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.task.BaseFile
-import com.android.string.plugin.task.build.*
+import com.android.string.plugin.task.build.DefaultEncodeImplFile
+import com.android.string.plugin.task.build.FastRotEncodeImplFile
+import com.android.string.plugin.task.build.ReverseEncodeImplFile
+import com.android.string.plugin.task.build.ShiftEncodeImplFile
+import com.android.string.plugin.task.build.XorEncodeImplFile
+import com.android.string.plugin.task.build.XorShiftEncodeImplFile
+import com.android.string.plugin.task.build.XorSimdEncodeImplFile
 
 /**
  * @author chancey
@@ -18,15 +30,7 @@ object ModeUtils {
     }
 
     fun getEncodeImplClassName(mode: Mode): String {
-        return when (mode) {
-            Mode.DEFAULT -> Constant.DEFAULT_IMPL_CLASS_NAME
-            Mode.XOR -> Constant.XOR_IMPL_CLASS_NAME
-            Mode.REVERSE -> Constant.REVERSE_IMPL_CLASS_NAME
-            Mode.SHIFT -> Constant.SHIFT_IMPL_CLASS_NAME
-            Mode.XOR_SHIFT -> Constant.XOR_SHIFT_IMPL_CLASS_NAME
-            Mode.XOR_SIMD -> Constant.XOR_SIMD_IMPL_CLASS_NAME
-            Mode.FAST_ROT -> Constant.FAST_ROT_IMPL_CLASS_NAME
-        }
+        return getEncodeImplFile(mode).getImplClassName()
     }
 
     fun getEncodeImplClassFilePath(mode: Mode, applicationId: String): String {

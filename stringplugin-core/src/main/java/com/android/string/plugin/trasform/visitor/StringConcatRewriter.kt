@@ -31,18 +31,21 @@ object StringConcatRewriter {
         if (name == "makeConcat" ||
             recipe == null ||
             recipe.all { it == ARGUMENT_MARKER || it == CONSTANT_MARKER } &&
-                constants.none { it is String }
+            constants.none { it is String }
         ) {
             return false
         }
-        if (constants.any { it !is String && it !is Integer && it !is Long && it !is Float && it !is Double }) {
+        if (constants.any { it !is String && it !is Int && it !is Long && it !is Float && it !is Double }) {
             return false
         }
 
         val argumentTypes = Type.getArgumentTypes(descriptor)
         val localIndices = allocateLocals(argumentTypes.toList())
         for (index in argumentTypes.indices.reversed()) {
-            visitor.visitVarInsn(argumentTypes[index].getOpcode(Opcodes.ISTORE), localIndices[index])
+            visitor.visitVarInsn(
+                argumentTypes[index].getOpcode(Opcodes.ISTORE),
+                localIndices[index]
+            )
         }
 
         visitor.visitTypeInsn(Opcodes.NEW, STRING_BUILDER_OWNER)
@@ -136,6 +139,7 @@ object StringConcatRewriter {
             } else {
                 "(Ljava/lang/Object;)Ljava/lang/StringBuilder;"
             }
+
             else -> "(Ljava/lang/Object;)Ljava/lang/StringBuilder;"
         }
         visitor.visitMethodInsn(

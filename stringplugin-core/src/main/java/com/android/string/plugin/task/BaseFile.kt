@@ -1,9 +1,10 @@
 package com.android.string.plugin.task
 
+import com.android.string.plugin.data.Constant
 import com.android.string.plugin.mode.Mode
-import com.squareup.javawriter.JavaWriter
+import com.palantir.javapoet.JavaFile
+import com.palantir.javapoet.TypeSpec
 import java.io.File
-import java.io.FileWriter
 
 /**
  * @author chancey
@@ -11,21 +12,17 @@ import java.io.FileWriter
  **/
 abstract class BaseFile {
 
-    fun create(path: File, applicationId: String, mode: Mode) {
-        val file = File(path, getFileName(applicationId))
-        JavaWriter(FileWriter(file)).use {
-            write(it, applicationId, mode)
-        }
+    abstract fun getImplClassName(): String
+
+    fun create(baseDir: File, applicationId: String, mode: Mode) {
+        create(baseDir, applicationId, listOf(mode))
     }
 
-    open fun create(path: File, applicationId: String, modes: List<Mode>) {
-        val file = File(path, getFileName(applicationId))
-        JavaWriter(FileWriter(file)).use {
-            write(it, applicationId, modes.first())
-        }
+    open fun create(baseDir: File, applicationId: String, modes: List<Mode>) {
+        val typeSpec = buildTypeSpec(applicationId, modes)
+        val pkg = Constant.PLUGIN_CLASS_PACKAGE.format(applicationId)
+        JavaFile.builder(pkg, typeSpec).build().writeTo(baseDir)
     }
 
-    abstract fun write(writer: JavaWriter, applicationId: String, mode: Mode)
-
-    abstract fun getFileName(applicationId: String): String
+    abstract fun buildTypeSpec(applicationId: String, modes: List<Mode>): TypeSpec
 }

@@ -3,7 +3,11 @@ package com.android.string.plugin.task.build
 import com.android.string.plugin.data.Constant
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.task.BaseFile
-import com.squareup.javawriter.JavaWriter
+import com.palantir.javapoet.ArrayTypeName
+import com.palantir.javapoet.ClassName
+import com.palantir.javapoet.MethodSpec
+import com.palantir.javapoet.TypeName
+import com.palantir.javapoet.TypeSpec
 import javax.lang.model.element.Modifier
 
 /**
@@ -14,82 +18,70 @@ import javax.lang.model.element.Modifier
  * @date 2026/6/19
  **/
 class FastRotEncodeImplFile : BaseFile() {
-    override fun write(writer: JavaWriter, applicationId: String, mode: Mode) {
-        val pkg = Constant.PLUGIN_CLASS_PACKAGE.format(applicationId)
-        writer.emitPackage(pkg)
-            .beginType(
-                Constant.FAST_ROT_IMPL_CLASS_NAME,
-                "class",
-                mutableSetOf(Modifier.PUBLIC, Modifier.FINAL),
-                null,
-                Constant.ABSTRACT_CLASS_NAME
-            )
-            .emitAnnotation(Override::class.java)
-            .beginMethod(
-                ByteArray::class.java.simpleName,
-                "encrypt",
-                mutableSetOf(Modifier.PUBLIC),
-                ByteArray::class.java.simpleName,
-                "data",
-                String::class.java.simpleName,
-                "key"
-            )
-            .emitStatement("if (data == null || data.length == 0 || key == null) return data")
-            .emitEmptyLine()
-            .emitStatement("// 使用key生成1-7的旋转值")
-            .emitStatement("int rotation = Math.abs(key.hashCode()) %% 7 + 1")
-            .emitEmptyLine()
-            .beginControlFlow("for (int i = 0; i < data.length; i++)")
-            .emitStatement("data[i] = rotateLeft(data[i], rotation)")
-            .endControlFlow()
-            .emitStatement("return data")
-            .endMethod()
-            .emitEmptyLine()
-            .emitAnnotation(Override::class.java)
-            .beginMethod(
-                ByteArray::class.java.simpleName,
-                "decrypt",
-                mutableSetOf(Modifier.PUBLIC),
-                ByteArray::class.java.simpleName,
-                "data",
-                ByteArray::class.java.simpleName,
-                "key"
-            )
-            .emitStatement("if (data == null || data.length == 0 || key == null) return data")
-            .emitEmptyLine()
-            .emitStatement("int rotation = Math.abs(new String(key).hashCode()) %% 7 + 1")
-            .emitEmptyLine()
-            .beginControlFlow("for (int i = 0; i < data.length; i++)")
-            .emitStatement("data[i] = rotateRight(data[i], rotation)")
-            .endControlFlow()
-            .emitStatement("return data")
-            .endMethod()
-            .emitEmptyLine()
-            .beginMethod(
-                "byte",
-                "rotateLeft",
-                mutableSetOf(Modifier.PRIVATE, Modifier.STATIC),
-                "byte",
-                "value",
-                "int",
-                "positions"
-            )
-            .emitStatement("return (byte) (((value & 0xFF) << positions) | ((value & 0xFF) >>> (8 - positions)))")
-            .endMethod()
-            .emitEmptyLine()
-            .beginMethod(
-                "byte",
-                "rotateRight",
-                mutableSetOf(Modifier.PRIVATE, Modifier.STATIC),
-                "byte",
-                "value",
-                "int",
-                "positions"
-            )
-            .emitStatement("return (byte) (((value & 0xFF) >>> positions) | ((value & 0xFF) << (8 - positions)))")
-            .endMethod()
-            .endType()
+    override fun getImplClassName() = Constant.FAST_ROT_IMPL_CLASS_NAME
+
+    override fun buildTypeSpec(applicationId: String, modes: List<Mode>): TypeSpec {
+        val byteArrayType = ArrayTypeName.of(TypeName.BYTE)
+        return TypeSpec.classBuilder(getImplClassName())
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addSuperinterface(ClassName.bestGuess(Constant.ABSTRACT_CLASS_NAME))
+            .addMethod(buildEncryptMethod(byteArrayType))
+            .addMethod(buildDecryptMethod(byteArrayType))
+            .addMethod(buildRotateLeftMethod())
+            .addMethod(buildRotateRightMethod())
+            .build()
     }
 
-    override fun getFileName(applicationId: String) = "${Constant.FAST_ROT_IMPL_CLASS_NAME}.java"
+    private fun buildEncryptMethod(byteArrayType: TypeName): MethodSpec {
+        return MethodSpec.methodBuilder("encrypt")
+            .addAnnotation(Override::class.java)
+            .addModifiers(Modifier.PUBLIC)
+            .returns(byteArrayType)
+            .addParameter(byteArrayType, "data")
+            .addParameter(String::class.java, "key")
+            .addStatement("if (data == null || data.length == 0 || key == null) return data")
+            .addComment("使用key生成1-7的旋转值")
+            .addStatement("int rotation = Math.abs(key.hashCode()) % 7 + 1")
+            .beginControlFlow("for (int i = 0; i < data.length; i++)")
+            .addStatement("data[i] = rotateLeft(data[i], rotation)")
+            .endControlFlow()
+            .addStatement("return data")
+            .build()
+    }
+
+    private fun buildDecryptMethod(byteArrayType: TypeName): MethodSpec {
+        return MethodSpec.methodBuilder("decrypt")
+            .addAnnotation(Override::class.java)
+            .addModifiers(Modifier.PUBLIC)
+            .returns(byteArrayType)
+            .addParameter(byteArrayType, "data")
+            .addParameter(byteArrayType, "key")
+            .addStatement("if (data == null || data.length == 0 || key == null) return data")
+            .addStatement("int rotation = Math.abs(new String(key).hashCode()) % 7 + 1")
+            .beginControlFlow("for (int i = 0; i < data.length; i++)")
+            .addStatement("data[i] = rotateRight(data[i], rotation)")
+            .endControlFlow()
+            .addStatement("return data")
+            .build()
+    }
+
+    private fun buildRotateLeftMethod(): MethodSpec {
+        return MethodSpec.methodBuilder("rotateLeft")
+            .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+            .returns(TypeName.BYTE)
+            .addParameter(TypeName.BYTE, "value")
+            .addParameter(Int::class.javaPrimitiveType, "positions")
+            .addStatement("return (byte) (((value & 0xFF) << positions) | ((value & 0xFF) >>> (8 - positions)))")
+            .build()
+    }
+
+    private fun buildRotateRightMethod(): MethodSpec {
+        return MethodSpec.methodBuilder("rotateRight")
+            .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+            .returns(TypeName.BYTE)
+            .addParameter(TypeName.BYTE, "value")
+            .addParameter(Int::class.javaPrimitiveType, "positions")
+            .addStatement("return (byte) (((value & 0xFF) >>> positions) | ((value & 0xFF) << (8 - positions)))")
+            .build()
+    }
 }

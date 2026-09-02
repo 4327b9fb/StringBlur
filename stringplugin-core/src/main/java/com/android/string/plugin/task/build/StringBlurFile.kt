@@ -4,7 +4,15 @@ import com.android.string.plugin.data.Constant
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.task.BaseFile
 import com.android.string.plugin.util.ModeUtils
-import com.squareup.javawriter.JavaWriter
+import com.palantir.javapoet.ArrayTypeName
+import com.palantir.javapoet.ClassName
+import com.palantir.javapoet.CodeBlock
+import com.palantir.javapoet.FieldSpec
+import com.palantir.javapoet.JavaFile
+import com.palantir.javapoet.MethodSpec
+import com.palantir.javapoet.TypeName
+import com.palantir.javapoet.TypeSpec
+import java.io.File
 import javax.lang.model.element.Modifier
 
 /**
@@ -16,91 +24,90 @@ import javax.lang.model.element.Modifier
  **/
 class StringBlurFile : BaseFile() {
 
-    fun create(path: java.io.File, applicationId: String, modes: List<Mode>, className: String, methodName: String) {
-        val file = java.io.File(path, "$className.java")
-        JavaWriter(java.io.FileWriter(file)).use {
-            write(it, applicationId, modes, className, methodName)
-        }
-    }
+    override fun getImplClassName() = Constant.PLUGIN_CLASS_NAME
 
-    override fun create(path: java.io.File, applicationId: String, modes: List<Mode>) {
-        create(path, applicationId, modes, Constant.PLUGIN_CLASS_NAME, "decrypt")
-    }
-
-    override fun write(writer: JavaWriter, applicationId: String, mode: Mode) {
-        write(writer, applicationId, listOf(mode), Constant.PLUGIN_CLASS_NAME, "decrypt")
-    }
-
-    private fun write(writer: JavaWriter, applicationId: String, modes: List<Mode>, className: String, methodName: String) {
+    fun createEntry(
+        baseDir: File,
+        applicationId: String,
+        modes: List<Mode>,
+        className: String,
+        methodName: String
+    ) {
+        val typeSpec = buildTypeSpec(applicationId, modes, className, methodName)
         val pkg = Constant.PLUGIN_CLASS_PACKAGE.format(applicationId)
-        val imports = modes.map { ModeUtils.getEncodeImplClassFilePath(it, applicationId) }
-        writer.emitPackage(pkg)
-            .emitImports(imports)
-            .beginType(
-                className,
-                "class",
-                mutableSetOf(Modifier.PUBLIC, Modifier.FINAL),
-            )
-        modes.forEachIndexed { index, currentMode ->
-            val className = ModeUtils.getEncodeImplClassName(currentMode)
-            writer.emitField(
-                className,
+        JavaFile.builder(pkg, typeSpec).build().writeTo(baseDir)
+    }
+
+    override fun create(baseDir: File, applicationId: String, modes: List<Mode>) {
+        createEntry(baseDir, applicationId, modes, getImplClassName(), "decrypt")
+    }
+
+    override fun buildTypeSpec(applicationId: String, modes: List<Mode>): TypeSpec {
+        return buildTypeSpec(applicationId, modes, getImplClassName(), "decrypt")
+    }
+
+    private fun buildTypeSpec(
+        applicationId: String,
+        modes: List<Mode>,
+        className: String,
+        methodName: String
+    ): TypeSpec {
+        val pkg = Constant.PLUGIN_CLASS_PACKAGE.format(applicationId)
+        val fields = modes.mapIndexed { index, currentMode ->
+            val implClassName = ClassName.get(pkg, ModeUtils.getEncodeImplClassName(currentMode))
+            FieldSpec.builder(
+                implClassName,
                 "IMPL_$index",
-                mutableSetOf(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL),
-                "new $className()"
+                Modifier.PRIVATE,
+                Modifier.STATIC,
+                Modifier.FINAL
             )
+                .initializer("new \$T()", implClassName)
+                .build()
         }
-        writer
-            .beginMethod(
-                String::class.java.simpleName,
-                methodName,
-                mutableSetOf(Modifier.PUBLIC, Modifier.STATIC),
-                String::class.java.simpleName,
-                "value",
-                String::class.java.simpleName,
-                "key",
-                "int",
-                "mode"
-            )
-            .emitStatement(decryptStringStatement(modes))
-            .endMethod()
-            .beginMethod(
-                String::class.java.simpleName,
-                methodName,
-                mutableSetOf(Modifier.PUBLIC, Modifier.STATIC),
-                ByteArray::class.java.simpleName,
-                "value",
-                ByteArray::class.java.simpleName,
-                "key",
-                "int",
-                "mode"
-            )
-            .emitStatement(decryptBytesStatement(modes))
-            .endMethod()
-            .endType()
+
+        return TypeSpec.classBuilder(className)
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addFields(fields)
+            .addMethod(buildDecryptStringMethod(modes, methodName))
+            .addMethod(buildDecryptBytesMethod(modes, methodName))
+            .build()
     }
 
-    private fun decryptStringStatement(modes: List<Mode>): String {
-        return decryptStatement(modes, "decryptString(value,key)")
+    private fun buildDecryptStringMethod(modes: List<Mode>, methodName: String): MethodSpec {
+        return MethodSpec.methodBuilder(methodName)
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(String::class.java)
+            .addParameter(String::class.java, "value")
+            .addParameter(String::class.java, "key")
+            .addParameter(Int::class.javaPrimitiveType, "mode")
+            .addCode(buildDecryptCode(modes, "decryptString(value,key)"))
+            .build()
     }
 
-    private fun decryptBytesStatement(modes: List<Mode>): String {
-        return decryptStatement(modes, "decryptBytes(value,key)")
+    private fun buildDecryptBytesMethod(modes: List<Mode>, methodName: String): MethodSpec {
+        val byteArrayType = ArrayTypeName.of(TypeName.BYTE)
+        return MethodSpec.methodBuilder(methodName)
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(String::class.java)
+            .addParameter(byteArrayType, "value")
+            .addParameter(byteArrayType, "key")
+            .addParameter(Int::class.javaPrimitiveType, "mode")
+            .addCode(buildDecryptCode(modes, "decryptBytes(value,key)"))
+            .build()
     }
 
-    private fun decryptStatement(modes: List<Mode>, call: String): String {
+    private fun buildDecryptCode(modes: List<Mode>, call: String): CodeBlock {
         if (modes.size == 1) {
-            return "return IMPL_0.$call"
+            return CodeBlock.of("return IMPL_0.\$L;\n", call)
         }
-        return buildString {
-            append("switch (mode) {\n")
-            modes.indices.drop(1).forEach { index ->
-                append("            case $index: return IMPL_$index.$call;\n")
-            }
-            append("            default: return IMPL_0.$call;\n")
-            append("        }")
+        val builder = CodeBlock.builder()
+        builder.beginControlFlow("switch (mode)")
+        modes.indices.drop(1).forEach { index ->
+            builder.addStatement("case \$L: return IMPL_\$L.\$L", index, index, call)
         }
+        builder.addStatement("default: return IMPL_0.\$L", call)
+        builder.endControlFlow()
+        return builder.build()
     }
-
-    override fun getFileName(applicationId: String) = "${Constant.PLUGIN_CLASS_NAME}.java"
 }

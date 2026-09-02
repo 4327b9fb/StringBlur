@@ -39,22 +39,29 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
             bytesMode.get().name
         )
 
+        val baseDir = dir.get().asFile
         val child = Constant.PLUGIN_CLASS_PACKAGE.format(appId).replace(".", "/")
-        val path = File(dir.get().asFile, child)
+        val path = File(baseDir, child)
         Logger.log("路径$path")
         if (!path.exists()) {
             path.mkdirs()
         }
         modeList.forEach { mode ->
-            ModeUtils.getEncodeImplFile(mode).create(path, appId, mode)
+            ModeUtils.getEncodeImplFile(mode).create(baseDir, appId, mode)
         }
         // 入口名按配置派生，配置变化会生成新名字；清掉旧包装类避免残留编译进 APK
         path.listFiles { file ->
             file.isFile &&
-                file.name != "${wrapperClassName.get()}.java" &&
-                (file.name.startsWith("Sb") || file.name == "${Constant.PLUGIN_CLASS_NAME}.java")
+                    file.name != "${wrapperClassName.get()}.java" &&
+                    (file.name.startsWith("Sb") || file.name == "${Constant.PLUGIN_CLASS_NAME}.java")
         }?.forEach { it.delete() }
-        StringBlurFile().create(path, appId, modeList, wrapperClassName.get(), wrapperMethodName.get())
+        StringBlurFile().createEntry(
+            baseDir,
+            appId,
+            modeList,
+            wrapperClassName.get(),
+            wrapperMethodName.get()
+        )
 
         StringBlurReport.generateSummary(reportFile.absolutePath)
         Logger.log("StringBlur performance report generated: ${reportFile.absolutePath}")
