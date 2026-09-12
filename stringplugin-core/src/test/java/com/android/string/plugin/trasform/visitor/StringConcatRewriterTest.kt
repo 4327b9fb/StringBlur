@@ -18,7 +18,14 @@ class StringConcatRewriterTest {
     @Test
     fun rewritesStringConcatAndKeepsFixedTextVisibleToStringVisitor() {
         val inputWriter = ClassWriter(0)
-        inputWriter.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "test/ConcatSample", null, "java/lang/Object", null)
+        inputWriter.visit(
+            Opcodes.V1_8,
+            Opcodes.ACC_PUBLIC,
+            "test/ConcatSample",
+            null,
+            "java/lang/Object",
+            null
+        )
         val method = inputWriter.visitMethod(
             Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC,
             "join",
@@ -58,7 +65,8 @@ class StringConcatRewriterTest {
             true,
             com.android.string.plugin.mode.SelectionStrategy.RANDOM,
             0.5,
-            0.5
+            0.5,
+            50
         )
         ClassReader(inputWriter.toByteArray()).accept(visitor, 0)
 
@@ -69,8 +77,8 @@ class StringConcatRewriterTest {
         assertTrue(instructions.none { it is InvokeDynamicInsnNode })
         assertTrue(instructions.any {
             it is MethodInsnNode &&
-                it.owner == "java/lang/StringBuilder" &&
-                it.name == "append"
+                    it.owner == "java/lang/StringBuilder" &&
+                    it.name == "append"
         })
         assertFalse(instructions.any { it is LdcInsnNode && it.cst == "prefix=" })
     }

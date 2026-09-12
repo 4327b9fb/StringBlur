@@ -3,7 +3,6 @@ package com.android.string.plugin.trasform
 import com.android.build.api.instrumentation.AsmClassVisitorFactory
 import com.android.build.api.instrumentation.ClassContext
 import com.android.build.api.instrumentation.ClassData
-import com.android.string.plugin.data.Constant
 import com.android.string.plugin.trasform.parameters.StringBlurInstrumentationParameters
 import org.objectweb.asm.ClassVisitor
 

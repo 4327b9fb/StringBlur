@@ -3,8 +3,8 @@ package com.android.string.plugin.trasform
 import com.android.string.plugin.mode.BytesMode
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.SelectionStrategy
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
@@ -16,7 +16,14 @@ class StringConstantValueTest {
     @Test
     fun removesConstantValueWhenStaticFinalStringIsEncrypted() {
         val inputWriter = ClassWriter(0)
-        inputWriter.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "test/Constants", null, "java/lang/Object", null)
+        inputWriter.visit(
+            Opcodes.V1_8,
+            Opcodes.ACC_PUBLIC,
+            "test/Constants",
+            null,
+            "java/lang/Object",
+            null
+        )
         inputWriter.visitField(
             Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL,
             "URL",
@@ -39,7 +46,8 @@ class StringConstantValueTest {
             true,
             SelectionStrategy.RANDOM,
             0.5,
-            0.5
+            0.5,
+            50
         )
         ClassReader(inputWriter.toByteArray()).accept(visitor, 0)
 

@@ -88,7 +88,7 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
         this.selectionStrategy.set(extension.selectionStrategy)
         this.performanceWeight.set(extension.performanceWeight)
         this.securityWeight.set(extension.securityWeight)
-        
+
         this.whiteList.addAll(extension.whiteList)
         this.whiteList.add("BuildConfig")
         this.whiteList.add("R2")

@@ -49,7 +49,12 @@ abstract class StringDeferringMethodVisitor(
      * PUTFIELD/PUTSTATIC 前的守卫：目标字段被 @KeepString 标注时返回 true，
      * 暂存串将保持明文。默认不启用，由子类按字段类别覆盖。
      */
-    protected open fun shouldKeepFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?): Boolean {
+    protected open fun shouldKeepFieldInsn(
+        opcode: Int,
+        owner: String?,
+        name: String?,
+        descriptor: String?
+    ): Boolean {
         return false
     }
 
@@ -147,7 +152,12 @@ abstract class StringDeferringMethodVisitor(
         ) {
             return
         }
-        super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, *bootstrapMethodArguments)
+        super.visitInvokeDynamicInsn(
+            name,
+            descriptor,
+            bootstrapMethodHandle,
+            *bootstrapMethodArguments
+        )
     }
 
     override fun visitJumpInsn(opcode: Int, label: Label?) {
@@ -198,7 +208,14 @@ abstract class StringDeferringMethodVisitor(
 
     override fun visitMaxs(maxStack: Int, maxLocals: Int) {
         flush()
-        super.visitMaxs(maxOf(maxStack, 3), maxOf(maxLocals, nextLocal))
+        // AGP管道的ClassWriter不重算maxStack，注入代码的栈高水位必须由本插件声明。
+        // 注意：注入序列替换的是原方法中1个LDC栈槽，且可能嵌在已有栈帧之上
+        // （如 aastore 循环中"数组,数组,下标"已有3槽基线），因此不是取max而是加净增量：
+        //  - BYTES内联：构造密文byte[]自身峰值4槽，替换1个LDC槽 → 净增3（最坏情况）
+        //  - STRING内联/split调用：getter结果+key+mode占3槽 → 净增2
+        //  - concat重写：参数先存入局部变量、栈回基线；append的常量/参数LDC同样走
+        //    flush替换路径，最坏净增3
+        super.visitMaxs(maxStack + MAX_STACK_HEADROOM, maxOf(maxLocals, nextLocal))
     }
 
     override fun visitEnd() {
@@ -214,7 +231,12 @@ abstract class StringDeferringMethodVisitor(
      * 冲刷暂存串；字段指令场景先判定目标字段是否被 @KeepString 标注，
      * 以决定明文发射（如 PUTFIELD 到 keep 字段），再交由子类处理字段指令。
      */
-    protected fun flushBeforeFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?) {
+    protected fun flushBeforeFieldInsn(
+        opcode: Int,
+        owner: String?,
+        name: String?,
+        descriptor: String?
+    ) {
         val value = pending
         if (value != null && !pendingKeep && shouldKeepFieldInsn(opcode, owner, name, descriptor)) {
             flushWith(REASON_KEEP)
@@ -242,5 +264,14 @@ abstract class StringDeferringMethodVisitor(
     companion object {
         const val REASON_KEEP = "keepString"
         const val REASON_SENSITIVE = "sensitiveApi"
+
+        /** 注入序列从零栈基线算起的峰值（用于全合成方法，如插件生成的<clinit>） */
+        const val INJECTED_CODE_MAX_STACK = 4
+
+        /**
+         * 注入序列相对原方法已声明maxStack的净增量（见 visitMaxs 注释）：
+         * 注入替换1个LDC槽，最坏（BYTES内联）自身峰值4 → 净增3
+         */
+        const val MAX_STACK_HEADROOM = 3
     }
 }
