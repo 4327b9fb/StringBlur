@@ -81,10 +81,14 @@ class StringBlurClassVisitor(
                 methodNode.signature,
                 methodNode.exceptions?.toTypedArray()
             ) ?: continue  // 下游选择跳过该方法
-            val sensitiveLdcOrdinals = SensitiveStringAnalyzer.findSensitiveLdcOrdinals(
-                controller.currentClassName,
-                methodNode
-            )
+            val sensitiveLdcOrdinals = if (controller.skipSensitiveApi) {
+                SensitiveStringAnalyzer.findSensitiveLdcOrdinals(
+                    controller.currentClassName,
+                    methodNode
+                )
+            } else {
+                emptySet()
+            }
             methodNode.accept(
                 controller.visitMethod(
                     methodNode.access,

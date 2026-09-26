@@ -30,7 +30,7 @@ class ClassVisitorController(
     private val modes: List<Mode>,
     private val reportPath: String?,
     private val minLength: Int,
-    private val skipSensitiveApi: Boolean = true,
+    val skipSensitiveApi: Boolean = true,
     private val selectionStrategy: SelectionStrategy = SelectionStrategy.RANDOM,
     private val performanceWeight: Double = 0.5,
     private val securityWeight: Double = 0.5,
