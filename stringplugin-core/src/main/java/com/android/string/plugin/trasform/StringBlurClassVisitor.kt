@@ -73,7 +73,7 @@ class StringBlurClassVisitor(
         // 这样合成getter命名前已获知本类全部已有方法名（包括排在加密点之后的方法），
         // 可避免$key/$entry_N/$chunk_N_M与原有方法重名导致重复方法签名
         controller.reserveExistingMethodNames(pendingMethods.map { it.name.orEmpty() })
-
+        // 方法名预留：合成的 getter（$key/$entry_N）不能与原类方法重名
         for (methodNode in pendingMethods) {
             val downstreamMv = super.visitMethod(
                 methodNode.access,
@@ -190,6 +190,8 @@ class StringBlurClassVisitor(
 
     // 全部方法缓冲到类visitEnd再统一回放（见visitEnd注释）
     private val pendingMethods = mutableListOf<MethodNode>()
+
+    // （合成字段名预留机制已随 getter 缓存一并移除）
 
     override fun visitMethod(
         access: Int,

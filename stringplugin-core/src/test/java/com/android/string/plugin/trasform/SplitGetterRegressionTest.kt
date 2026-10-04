@@ -712,7 +712,7 @@ class SplitGetterRegressionTest {
         return cw.toByteArray()
     }
 
-    private fun emitDecryptBody(mv: MethodVisitor, stringInput: Boolean) {
+    private fun emitDecryptBody(mv: org.objectweb.asm.MethodVisitor, stringInput: Boolean) {
         // DefaultEncodeImpl impl = new DefaultEncodeImpl();
         mv.visitTypeInsn(Opcodes.NEW, "com/android/string/plugin/demo_files/DefaultEncodeImpl")
         mv.visitInsn(Opcodes.DUP)
@@ -758,7 +758,7 @@ class SplitGetterRegressionTest {
         mv.visitInsn(Opcodes.ARETURN)
     }
 
-    private fun pushInt(mv: MethodVisitor, value: Int) {
+    private fun pushInt(mv: org.objectweb.asm.MethodVisitor, value: Int) {
         when (value) {
             in 0..5 -> mv.visitInsn(Opcodes.ICONST_0 + value)
             in Byte.MIN_VALUE..Byte.MAX_VALUE -> mv.visitIntInsn(Opcodes.BIPUSH, value)

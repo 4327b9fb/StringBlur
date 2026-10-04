@@ -12,4 +12,5 @@ enum class Mode {
     XOR_SHIFT,    // XOR+位移组合
     XOR_SIMD,     // SIMD优化的批量XOR（高性能）
     FAST_ROT,     // 快速旋转加密
+    LONG_PRNG,    // long常量+PRNG+查找表加密（高隐蔽性）
 }

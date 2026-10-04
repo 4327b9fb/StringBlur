@@ -52,7 +52,7 @@ class SmartAlgorithmSelector {
      */
     private fun selectSecurityMode(modes: List<Mode>): Mode {
         // 按安全强度排序（最安全的在前）
-        val securityOrder = listOf(Mode.XOR_SHIFT, Mode.DEFAULT, Mode.XOR_SIMD, Mode.SHIFT, Mode.XOR, Mode.FAST_ROT, Mode.REVERSE)
+        val securityOrder = listOf(Mode.LONG_PRNG, Mode.XOR_SHIFT, Mode.DEFAULT, Mode.XOR_SIMD, Mode.SHIFT, Mode.XOR, Mode.FAST_ROT, Mode.REVERSE)
         
         for (mode in securityOrder) {
             if (mode in modes) return mode
@@ -101,21 +101,25 @@ class SmartAlgorithmSelector {
     private fun getLengthScore(length: Int, mode: Mode): Double {
         return when (length) {
             in 0..8 -> when (mode) {
+                Mode.LONG_PRNG -> 1.2   // 短字符串最适合 LONG_PRNG
                 Mode.FAST_ROT, Mode.REVERSE -> 1.0
                 Mode.XOR -> 0.8
                 else -> 0.6
             }
             in 9..50 -> when (mode) {
+                Mode.LONG_PRNG -> 1.0   // 中等字符串也适合
                 Mode.XOR_SIMD -> 1.0
                 Mode.XOR, Mode.SHIFT -> 0.9
                 else -> 0.7
             }
             in 51..200 -> when (mode) {
+                Mode.LONG_PRNG -> 0.9   // 较长字符串也适合（16bit长度）
                 Mode.XOR_SHIFT -> 1.0
                 Mode.XOR_SIMD -> 0.9
                 else -> 0.8
             }
             else -> when (mode) { // > 200
+                Mode.LONG_PRNG -> 0.8   // 超长字符串也支持（最大65535）
                 Mode.REVERSE -> 1.0
                 Mode.XOR_SIMD -> 0.9
                 else -> 0.7
@@ -128,6 +132,7 @@ class SmartAlgorithmSelector {
      */
     private fun getSecurityScore(securityLevel: SecurityLevel, mode: Mode): Double {
         val baseSecurity = when (mode) {
+            Mode.LONG_PRNG -> 1.5  // 最高安全性：long常量+PRNG+查找表
             Mode.XOR_SHIFT, Mode.DEFAULT -> 1.0
             Mode.XOR_SIMD, Mode.SHIFT -> 0.8
             Mode.XOR -> 0.6
@@ -181,6 +186,7 @@ class SmartAlgorithmSelector {
             Mode.SHIFT -> 0.7        // 中等
             Mode.XOR_SHIFT -> 0.6    // 较慢
             Mode.DEFAULT -> 0.5      // 最慢
+            Mode.LONG_PRNG -> 0.4    // 较慢（PRNG计算+查找表）
         }
     }
     
@@ -197,6 +203,7 @@ class SmartAlgorithmSelector {
                 Mode.SHIFT -> "位移变换 - 中等速度，安全性好"
                 Mode.XOR_SHIFT -> "异或位移组合 - 较慢，安全性最高"
                 Mode.DEFAULT -> "Base64变种 - 最慢，兼容性最好"
+                Mode.LONG_PRNG -> "Long+PRNG+查找表 - 高隐蔽性，反编译只看到数字常量"
             }
         }
     }

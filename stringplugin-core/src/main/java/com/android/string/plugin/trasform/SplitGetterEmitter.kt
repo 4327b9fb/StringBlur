@@ -327,7 +327,7 @@ class SplitGetterEmitter {
         mv.visitCode()
         mv.visitLdcInsn(data)
         mv.visitInsn(Opcodes.ARETURN)
-        mv.visitMaxs(1, 0)
+        mv.visitMaxs(2, 0)
         mv.visitEnd()
     }
 

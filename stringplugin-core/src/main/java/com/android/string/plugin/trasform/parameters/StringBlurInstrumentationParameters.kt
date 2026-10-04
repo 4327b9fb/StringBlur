@@ -7,7 +7,6 @@ import com.android.string.plugin.mode.BytesMode
 import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.SelectionStrategy
 import com.android.string.plugin.util.ModeUtils
-import com.android.string.plugin.util.generator.Generator
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -66,7 +65,7 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
     abstract val securityWeight: Property<Double>
 
     fun setParams(
-        generator: Generator,
+        key: String,
         applicationId: Provider<String>,
         extension: StringBlurExtension,
         variantName: String,
@@ -75,7 +74,10 @@ abstract class StringBlurInstrumentationParameters : InstrumentationParameters {
         wrapperClass: Provider<String>,
         wrapperMethod: Provider<String>
     ) {
-        this.key.set(generator.generate())
+        // key 由插件侧一次生成后传入：LONG_PRNG 运行时实现类内嵌的 key
+        // 必须与编译期加密 key 完全一致。RandomGenerator 每次 generate() 都会产生
+        // 新随机值，若在参数与 task 中各自调用会得到不同 key，导致解密乱码。
+        this.key.set(key)
         this.bytesMode.set(extension.bytesMode)
         this.applicationId.set(applicationId)
         this.modes.addAll(modes)

@@ -71,6 +71,7 @@ class StringBlurFile : BaseFile() {
             .addFields(fields)
             .addMethod(buildDecryptStringMethod(modes, methodName))
             .addMethod(buildDecryptBytesMethod(modes, methodName))
+            .apply { if (modes.contains(Mode.LONG_PRNG)) addMethod(buildDecryptLongMethod(modes, methodName)) }
             .build()
     }
 
@@ -109,5 +110,28 @@ class StringBlurFile : BaseFile() {
         builder.addStatement("default: return IMPL_0.\$L", call)
         builder.endControlFlow()
         return builder.build()
+    }
+
+    /**
+     * 构建 decryptLong 方法（LONG_PRNG 模式专用）
+     * 签名：public static String decryptLong(long value, byte[] data)
+     * 注意：不需要 mode 参数，因为 LONG_PRNG 的实现索引在编译期已知。
+     */
+    private fun buildDecryptLongMethod(modes: List<Mode>, methodName: String): MethodSpec {
+        val byteArrayType = ArrayTypeName.of(TypeName.BYTE)
+        val longPrngIndex = modes.indexOf(Mode.LONG_PRNG)
+
+        return MethodSpec.methodBuilder("${methodName}Long")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(String::class.java)
+            .addParameter(TypeName.LONG, "value")
+            .addParameter(byteArrayType, "data")
+            .addCode(buildDecryptLongCode(longPrngIndex))
+            .build()
+    }
+
+    private fun buildDecryptLongCode(longPrngIndex: Int): CodeBlock {
+        // LONG_PRNG 实现索引在编译期已知，直接硬编码，无需运行时 mode 参数
+        return CodeBlock.of("return IMPL_\$L.decryptLong(value, data);\n", longPrngIndex)
     }
 }

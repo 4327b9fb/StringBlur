@@ -46,8 +46,15 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
         if (!path.exists()) {
             path.mkdirs()
         }
+        // LONG_PRNG 模式：从 key 派生查找表种子，确保编译期和运行时一致、多模块安全
+        val key = this.key.get()
         modeList.forEach { mode ->
-            ModeUtils.getEncodeImplFile(mode).create(baseDir, appId, mode)
+            val implFile = ModeUtils.getEncodeImplFile(mode)
+            if (mode == Mode.LONG_PRNG) {
+                implFile.create(baseDir, appId, modeList, key)
+            } else {
+                implFile.create(baseDir, appId, mode)
+            }
         }
         // 入口名按配置派生，配置变化会生成新名字；清掉旧包装类避免残留编译进 APK
         path.listFiles { file ->
@@ -69,6 +76,9 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
 
     @get:Input
     abstract val applicationId: Property<String>
+
+    @get:Input
+    abstract val key: Property<String>
 
     @get:Input
     abstract val variantName: Property<String>
@@ -104,12 +114,14 @@ abstract class StringBlurTask @Inject constructor() : DefaultTask() {
             reportFileProvider: Provider<java.io.File>,
             bytesMode: BytesMode,
             wrapperClassName: Provider<String>,
-            wrapperMethodName: Provider<String>
+            wrapperMethodName: Provider<String>,
+            key: String
         ) {
             val name = variant.name.capitalizeCompat()
             val taskName = "generate${Constant.PLUGIN_CLASS_NAME}$name"
             val provider = project.tasks.register(taskName, StringBlurTask::class.java) { task ->
                 task.applicationId.set(applicationId)
+                task.key.set(key)
                 task.variantName.set(variant.name)
                 task.bytesMode.set(bytesMode)
                 task.reportPath.fileProvider(reportFileProvider)

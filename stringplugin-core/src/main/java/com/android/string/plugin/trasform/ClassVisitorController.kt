@@ -1,5 +1,6 @@
 package com.android.string.plugin.trasform
 
+import com.android.string.plugin.demo_files.LongPrngEncodeImpl
 import com.android.string.plugin.field.StringFiled
 import com.android.string.plugin.mode.BytesMode
 import com.android.string.plugin.mode.Mode
@@ -42,6 +43,12 @@ class ClassVisitorController(
 
     // 当前类的getter发射器（每个visitor/controller实例独立，不跨类共享状态）
     private val splitGetterEmitter = SplitGetterEmitter()
+
+    // LONG_PRNG 模式的数据发射器（每个visitor/controller实例独立）
+    private val longPrngDataEmitter = LongPrngDataEmitter()
+
+    // LONG_PRNG 同串去重缓存：相同明文只编码一次，复用 long 值与数据偏移
+    private val longPrngEncodedResults = HashMap<String, LongPrngEncodeImpl.EncryptResult>()
 
     fun isSensitiveCall(owner: String?, name: String?): Boolean {
         return skipSensitiveApi && SensitiveApiDetector.isSensitive(owner, name)
@@ -225,6 +232,13 @@ class ClassVisitorController(
     fun write(data: String?, mv: MethodVisitor, methodName: String? = null) {
         val modeIndex = selectModeIndex(data ?: "")
         val mode = modes[modeIndex]
+
+        // LONG_PRNG 模式：完全不同的字节码生成路径
+        if (mode == Mode.LONG_PRNG) {
+            writeLongPrng(data, mv, methodName)
+            return
+        }
+
         val selectedBytesMode = selectBytesMode()
         val stringBlurWrapper = ModeUtils.getEncodeImpl(mode)
         reportEncrypted(methodName, data, mode, selectedBytesMode)
@@ -239,7 +253,8 @@ class ClassVisitorController(
         }
 
         // 基于加密后数据精确估算字节码大小
-        // BYTES模式: 每个字节约6字节(DUP+index+value+BASTORE) + 数组创建 + key数组 + 调用
+        // BYTES模式: 每个字节约6-7字节(DUP+index+value+BASTORE，index≥128走SIPUSH) + 数组创建 + key数组 + 调用
+        // 用最坏7估算：触发split时已内联部分实际字节码≈估算×(7/6)，方法总长=原方法+内联≤65535才安全
         // STRING模式: LDC引用常量池，字节码固定约15字节
         val estimatedSize = if (isBytesMode) {
             (encryptedData as ByteArray).size * 7 + 120
@@ -375,9 +390,9 @@ class ClassVisitorController(
     }
 
     /**
-     * 当前类是否有待发射的辅助getter（split条目或BYTES模式的$key getter）
+     * 当前类是否有待发射的辅助getter（split条目、BYTES模式的$key getter、或LONG_PRNG的$longData getter）
      */
-    fun hasSplitGetters(): Boolean = splitGetterEmitter.hasPending()
+    fun hasSplitGetters(): Boolean = splitGetterEmitter.hasPending() || longPrngDataEmitter.hasPending()
 
     /**
      * 登记被转换类原有方法名，保证合成的getter不与已有方法重名。
@@ -385,14 +400,75 @@ class ClassVisitorController(
      */
     fun reserveExistingMethodNames(names: Collection<String>) {
         splitGetterEmitter.reserveExistingNames(names)
+        longPrngDataEmitter.reserveExistingNames(names)
     }
+
 
     /**
      * 在类visitEnd时为当前类发射辅助getter方法
      * getter方法直接添加到当前类中，确保被AGP管道处理并编入DEX
      */
     fun emitSplitGetters(cv: ClassVisitor) {
-        currentClassName?.let { splitGetterEmitter.emitGetters(cv, it) }
+        currentClassName?.let { className ->
+            splitGetterEmitter.emitGetters(cv, className)
+            longPrngDataEmitter.emitGetter(cv, className)
+        }
+    }
+
+    /**
+     * LONG_PRNG 模式专用：写入 long 常量 + 加密数据 getter + 解密调用
+     *
+     * 字节码序列：
+     *   ldc2_w <long_value>
+     *   invoke-static CurrentClass.$longData()[B
+     *   invoke-static WrapperClass.{wrapperMethod}Long(J[B)Ljava/lang/String;
+     */
+    private fun writeLongPrng(data: String?, mv: MethodVisitor, methodName: String?) {
+        if (data == null || data.isEmpty()) {
+            // 空字符串：直接加载空串
+            mv.visitLdcInsn("")
+            return
+        }
+
+        // 长度超限（>65535，实际几乎不可能）：保持明文
+        if (data.length > LongPrngEncodeImpl.MAX_STRING_LENGTH) {
+            reportIgnored(methodName, data, "longPrngOverflow")
+            mv.visitLdcInsn(data)
+            return
+        }
+
+        // 每类累计加密数据上限：16bit offset 最多表达 65535 字节。
+        // 超限时回退明文并报告，而不是让 encryptWithData 抛异常中断整个构建
+        val dataOffset = longPrngDataEmitter.currentOffset()
+        if (dataOffset + data.length * 2 > LongPrngEncodeImpl.MAX_DATA_OFFSET) {
+            reportIgnored(methodName, data, "longPrngDataOffsetOverflow")
+            mv.visitLdcInsn(data)
+            return
+        }
+
+        reportEncrypted(methodName, data, Mode.LONG_PRNG, BytesMode.BYTES)
+
+        // 相同字符串去重：复用已编码的 long 值（内含种子/长度/偏移），数据只追加一次
+        val existing = longPrngEncodedResults[data]
+        val result = if (existing != null) {
+            existing
+        } else {
+            val fresh = LongPrngEncodeImpl.encryptWithData(data, key, dataOffset)
+            longPrngEncodedResults[data] = fresh
+            // 将加密字节追加到数据发射器
+            longPrngDataEmitter.appendData(fresh.encryptedBytes)
+            fresh
+        }
+
+        // 获取加密数据 getter 名称（appendData 后必已分配）
+        val dataGetterName = longPrngDataEmitter.requestGetterName()
+            ?: throw IllegalStateException("longPrngDataEmitter has no data after encrypt")
+
+        val className = currentClassName
+            ?: throw IllegalStateException("currentClassName is null during writeLongPrng")
+
+        // 生成字节码：ldc2_w + invoke-static $longData() + invoke-static decryptLong()
+        asmWriter.writeLong(result.longValue, dataGetterName, className, mv)
     }
 
     private fun selectBytesMode(): BytesMode {

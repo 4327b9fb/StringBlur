@@ -44,6 +44,43 @@ class AsmWriter(private val className: String, private val methodName: String = 
         )
     }
 
+    /**
+     * LONG_PRNG 模式：写入 long 常量 + 加密数据 getter 调用 + 解密调用
+     *
+     * 字节码序列：
+     *   ldc2_w <long_value>
+     *   invoke-static CurrentClass.$longData()[B
+     *   invoke-static WrapperClass.{methodName}Long(J[B)Ljava/lang/String;
+     *
+     * 注意：{methodName}Long 签名为 (J[B)，无 mode 参数（LONG_PRNG 索引在编译期已知）
+     *
+     * @param longValue 加密后的 long 值
+     * @param dataGetterName 加密数据 getter 方法名（由 LongPrngDataEmitter 生成）
+     * @param currentClassName 当前被加密类的内部名
+     * @param mv 方法访问器
+     */
+    fun writeLong(longValue: Long, dataGetterName: String, currentClassName: String, mv: MethodVisitor) {
+        // ldc2_w <long_value>
+        mv.visitLdcInsn(longValue)
+        // invoke-static CurrentClass.$longData()[B
+        mv.visitMethodInsn(
+            Opcodes.INVOKESTATIC,
+            currentClassName,
+            dataGetterName,
+            "()[B",
+            false
+        )
+        // invoke-static WrapperClass.decryptLong(J[B)Ljava/lang/String;
+        // 方法名 = 配置的 wrapperMethodName + "Long"（与 StringBlurFile 生成的入口方法一致）
+        mv.visitMethodInsn(
+            Opcodes.INVOKESTATIC,
+            className,
+            methodName + "Long",
+            "(J[B)Ljava/lang/String;",
+            false
+        )
+    }
+
     fun write(value: ByteArray, mv: MethodVisitor) {
         write(value.size, mv)
         mv.visitIntInsn(Opcodes.NEWARRAY, Opcodes.T_BYTE)

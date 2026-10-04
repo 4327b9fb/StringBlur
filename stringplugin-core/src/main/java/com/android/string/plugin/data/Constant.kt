@@ -61,6 +61,11 @@ object Constant {
     const val FAST_ROT_IMPL_CLASS_NAME = "FastRotEncodeImpl"
 
     /**
+     * Long+PRNG+查找表加解密实现类类名
+     */
+    const val LONG_PRNG_IMPL_CLASS_NAME = "LongPrngEncodeImpl"
+
+    /**
      * 注解：范围内字符串保持明文
      */
     const val ANNOTATION_KEEP_STRING = "Lcom/android/string/plugin/KeepString;"
@@ -85,4 +90,5 @@ object Constant {
     const val XOR_SHIFT_IMPL_CLASS_FILE_PATH = "$PLUGIN_CLASS_PACKAGE.$XOR_SHIFT_IMPL_CLASS_NAME"
     const val XOR_SIMD_IMPL_CLASS_FILE_PATH = "$PLUGIN_CLASS_PACKAGE.$XOR_SIMD_IMPL_CLASS_NAME"
     const val FAST_ROT_IMPL_CLASS_FILE_PATH = "$PLUGIN_CLASS_PACKAGE.$FAST_ROT_IMPL_CLASS_NAME"
+    const val LONG_PRNG_IMPL_CLASS_FILE_PATH = "$PLUGIN_CLASS_PACKAGE.$LONG_PRNG_IMPL_CLASS_NAME"
 }

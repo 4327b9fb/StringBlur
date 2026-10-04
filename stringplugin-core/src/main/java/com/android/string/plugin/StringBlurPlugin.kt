@@ -45,6 +45,11 @@ class StringBlurPlugin : Plugin<Project> {
                 else -> null
             } ?: throw GradleException(Logger.text("加密key不能为空，请通过 stringblur { key = ... }、gradle property stringblur.key、环境变量 STRINGBLUR_KEY 或 local.properties 配置"))
 
+            // key 只生成一次，transform 参数与生成 task 共用同一值：
+            // LONG_PRNG 运行时实现类内嵌的 key 必须等于编译期加密 key，
+            // 否则查找表种子不一致，运行时解密得到乱码
+            val resolvedKeyString = generator.generate()
+
             // AGP 8.13 起 namespace 为 Provider<String>，且在 onVariants 阶段不可 .get()，
             // 全部入口名与包装类路径必须惰性求值，否则会得到 "property 'namespace'" 这类垃圾值
             val applicationIdProvider = variant.namespace
@@ -76,7 +81,7 @@ class StringBlurPlugin : Plugin<Project> {
                 StringBlurClassTransform::class.java,
                 InstrumentationScope.ALL
             ) { params ->
-                params.setParams(generator, applicationIdProvider, stringblur, variant.name, reportPathString, modes, wrapperClass, wrapperMethodName)
+                params.setParams(resolvedKeyString, applicationIdProvider, stringblur, variant.name, reportPathString, modes, wrapperClass, wrapperMethodName)
             }
 
             variant.instrumentation.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_INSTRUMENTED_CLASSES)
@@ -89,7 +94,8 @@ class StringBlurPlugin : Plugin<Project> {
                 reportPathFile,
                 stringblur.bytesMode,
                 wrapperClassName,
-                wrapperMethodName
+                wrapperMethodName,
+                resolvedKeyString
             )
         }
 

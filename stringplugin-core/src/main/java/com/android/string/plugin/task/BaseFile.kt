@@ -24,5 +24,12 @@ abstract class BaseFile {
         JavaFile.builder(pkg, typeSpec).build().writeTo(baseDir)
     }
 
+    /**
+     * 带 key 参数的创建方法，供需要 key 派生种子的模式使用（如 LONG_PRNG）。
+     */
+    open fun create(baseDir: File, applicationId: String, modes: List<Mode>, key: String) {
+        create(baseDir, applicationId, modes)
+    }
+
     abstract fun buildTypeSpec(applicationId: String, modes: List<Mode>): TypeSpec
 }
