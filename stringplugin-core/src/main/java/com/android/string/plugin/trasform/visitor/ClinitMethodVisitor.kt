@@ -48,6 +48,7 @@ class ClinitMethodVisitor(
             return
         }
         controller.write(value, mv, methodName)
+        markStackInjected()
     }
 
     override fun resetPendingState() {

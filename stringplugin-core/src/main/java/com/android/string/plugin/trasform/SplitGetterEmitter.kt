@@ -86,7 +86,7 @@ class SplitGetterEmitter {
     }
 
     /**
-     * 请求生成缓存key字节数组的getter，返回其方法名（幂等，多次请求只生成一次）
+     * 请求生成key字节数组的getter，返回其方法名（幂等，多次请求只生成一次）
      */
     fun requestKeyGetter(key: String): String {
         if (keyBytes == null) {
@@ -107,7 +107,10 @@ class SplitGetterEmitter {
      * @param ownerClassName 被转换类的内部名，用于生成方法间的invokestatic调用
      */
     fun emitGetters(cv: ClassVisitor, ownerClassName: String) {
-        keyBytes?.let { emitBytesGetter(cv, keyGetterName!!, it) }
+        val key = keyBytes
+        if (key != null) {
+            emitBytesGetter(cv, ownerClassName, keyGetterName!!, key)
+        }
 
         pendingEntries.forEachIndexed { index, entry ->
             if (entry.isBytesMode) {
@@ -137,7 +140,7 @@ class SplitGetterEmitter {
         val data = entry.data as ByteArray
         val entryName = entry.getterName
         if (data.size <= CHUNK_SIZE) {
-            emitBytesGetter(cv, entryName, data)
+            emitBytesGetter(cv, owner, entryName, data)
             return
         }
 
@@ -148,10 +151,10 @@ class SplitGetterEmitter {
             val end = minOf(start + CHUNK_SIZE, data.size)
             val chunkName = allocateName(chunkGetterName(index, chunkIndex))
             chunkNames.add(chunkName)
-            emitBytesGetter(cv, chunkName, data.copyOfRange(start, end))
+            emitBytesGetter(cv, owner, chunkName, data.copyOfRange(start, end))
         }
 
-        // 聚合方法：dst = new byte[total]，依次System.arraycopy各chunk
+        // 聚合方法：new byte[total] + System.arraycopy 各 chunk + 返回（每次重建，无缓存）
         // 注意System.arraycopy是静态方法，参数顺序(src, srcPos, dest, destPos, length)
         val mv = cv.visitMethod(
             Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC or Opcodes.ACC_SYNTHETIC,
@@ -193,9 +196,15 @@ class SplitGetterEmitter {
     }
 
     /**
-     * 发射直接返回指定byte[]的getter方法（用于$key和$chunk）
+     * 发射直接返回指定byte[]的getter方法（用于$key、$chunk、小$entry）。
+     * 无静态缓存，每次调用重新构建数组。
      */
-    private fun emitBytesGetter(cv: ClassVisitor, name: String, data: ByteArray) {
+    private fun emitBytesGetter(
+        cv: ClassVisitor,
+        owner: String,
+        name: String,
+        data: ByteArray
+    ) {
         val mv = cv.visitMethod(
             Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC or Opcodes.ACC_SYNTHETIC,
             name,
@@ -236,7 +245,7 @@ class SplitGetterEmitter {
         val data = entry.data as String
         val entryName = entry.getterName
         if (data.length <= CHUNK_SIZE) {
-            emitStringGetter(cv, entryName, data)
+            emitStringGetter(cv, owner, entryName, data)
             return
         }
 
@@ -247,10 +256,10 @@ class SplitGetterEmitter {
             val end = minOf(start + CHUNK_SIZE, data.length)
             val chunkName = allocateName(chunkGetterName(index, chunkIndex))
             chunkNames.add(chunkName)
-            emitStringGetter(cv, chunkName, data.substring(start, end))
+            emitStringGetter(cv, owner, chunkName, data.substring(start, end))
         }
 
-        // 聚合方法：new StringBuilder()，依次append各chunk后toString
+        // 聚合方法：new StringBuilder 依次 append 各 chunk 后 toString + 返回（每次重建，无缓存）
         val mv = cv.visitMethod(
             Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC or Opcodes.ACC_SYNTHETIC,
             entryName,
@@ -299,9 +308,15 @@ class SplitGetterEmitter {
     }
 
     /**
-     * 发射直接返回指定String常量的getter方法（用于小条目和$chunk）
+     * 发射直接返回指定String常量的getter方法（用于小条目和$chunk）。
+     * 无静态缓存，每次调用返回常量。
      */
-    private fun emitStringGetter(cv: ClassVisitor, name: String, data: String) {
+    private fun emitStringGetter(
+        cv: ClassVisitor,
+        owner: String,
+        name: String,
+        data: String
+    ) {
         val mv = cv.visitMethod(
             Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC or Opcodes.ACC_SYNTHETIC,
             name,

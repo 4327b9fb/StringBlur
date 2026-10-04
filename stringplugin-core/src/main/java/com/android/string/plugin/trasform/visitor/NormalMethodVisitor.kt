@@ -56,6 +56,7 @@ class NormalMethodVisitor(
             }
             // local variables
             controller.write(value, mv, methodName)
+            markStackInjected()
         }
     }
 }

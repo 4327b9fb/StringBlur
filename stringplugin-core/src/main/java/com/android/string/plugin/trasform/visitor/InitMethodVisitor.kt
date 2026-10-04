@@ -25,6 +25,7 @@ class InitMethodVisitor(
             return
         }
         controller.write(value, mv, methodName)
+        markStackInjected()
     }
 
     override fun shouldKeepFieldInsn(opcode: Int, owner: String?, name: String?, descriptor: String?): Boolean {

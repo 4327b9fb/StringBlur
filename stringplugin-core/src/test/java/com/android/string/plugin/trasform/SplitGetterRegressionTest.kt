@@ -5,7 +5,10 @@ import com.android.string.plugin.mode.Mode
 import com.android.string.plugin.mode.SelectionStrategy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
@@ -298,6 +301,132 @@ class SplitGetterRegressionTest {
         assertEquals(plainTexts, result.toList())
     }
 
+    // ==================== 修复1/2/4 专项回归 ====================
+
+    /**
+     * 修复1回归（BYTES估算系数6->7）：原方法自身~13KB + 多条小密文（单条<4096，
+     * 不触发oversized短路，只走累计阈值latch）时：
+     *  - 修前：估算 6*ΣC+120N ≈ 48.6KB ≤ 50KB → 不触发split → 10条全部内联，
+     *    实际字节 ≈ 6.97*ΣC + 13KB ≈ 68.6KB > 65535 → MethodTooLargeException
+     *  - 修后：估算 7*ΣC+120N ≈ 56.5KB > 50KB → 触发split → 方法 ≈ 13KB + 调用点，安全
+     */
+    @Test
+    fun bytesMode_largeOriginalMethod_withManySmallEntries_avoidsMethodTooLarge() {
+        // 每条明文~590字符 → Base64密文~790B（10条合计~7.9KB，单条远小于4096）
+        val plainTexts = (0 until 10).map { "est-$it-" + "q".repeat(580) }
+        val nops = 13000
+
+        val input = ClassWriter(0)
+        input.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "test/Target", null, "java/lang/Object", null)
+        run {
+            val mv = input.visitMethod(
+                Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC,
+                "values", "()[Ljava/lang/String;", null, null
+            )
+            mv.visitCode()
+            // 原方法自身的既有字节码（模拟大方法：switch表/初始化块等），不计入加密估算
+            repeat(nops) { mv.visitInsn(Opcodes.NOP) }
+            mv.visitLdcInsn("placeholder")  // 占位LDC会被替换为密文/解密调用，无碍
+            mv.visitInsn(Opcodes.POP)
+            pushInt(mv, plainTexts.size)
+            mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/String")
+            plainTexts.forEachIndexed { i, s ->
+                mv.visitInsn(Opcodes.DUP)
+                pushInt(mv, i)
+                mv.visitLdcInsn(s)
+                mv.visitInsn(Opcodes.AASTORE)
+            }
+            mv.visitInsn(Opcodes.ARETURN)
+            mv.visitMaxs(4, 1)
+            mv.visitEnd()
+        }
+        input.visitEnd()
+
+        try {
+            transformWithoutComputeMaxs(input.toByteArray(), BytesMode.BYTES, dataSplitThreshold = 50)
+        } catch (t: Throwable) {
+            // 捕获ASM的MethodTooLargeException（或其包装）——修前必抛
+            fail("BYTES估算系数6时本用例应触发split、不得抛出方法超限异常；实际: $t")
+        }
+    }
+
+    /**
+     * 修复2回归（getter静态缓存）：$key()与$entry_N()两次调用必须返回同一实例，
+     * 不能每次解密都重建数组。
+     */
+    @Test
+    fun bytesMode_getters_returnFreshInstances() {
+        // $key缓存：小数据走inline路径（不触发split），$key()仍全类唯一
+        val small = (0 until 3).map { "key-$it" }
+        val outSmall = transformWithoutComputeMaxs(
+            buildTargetBytes(small), BytesMode.BYTES, dataSplitThreshold = 64
+        )
+        val t1 = loadTransformedClass(outSmall)
+        val keyGetter = t1.getDeclaredMethod("\$key").apply { isAccessible = true }
+        assertNotSame("无缓存：\$key()两次调用返回不同实例", keyGetter.invoke(null), keyGetter.invoke(null))
+
+        // $entry_0缓存：大单条密文（>4096）走oversized split，$entry_0存在
+        val big = listOf("big-" + "w".repeat(5000))
+        val outBig = transformWithoutComputeMaxs(
+            buildTargetBytes(big), BytesMode.BYTES, dataSplitThreshold = 1
+        )
+        val t2 = loadTransformedClass(outBig)
+        val entryGetter = t2.getDeclaredMethod("\$entry_0").apply { isAccessible = true }
+        assertNotSame("无缓存：\$entry_0()两次调用返回不同实例", entryGetter.invoke(null), entryGetter.invoke(null))
+    }
+
+    /**
+     * 修复4回归（maxStack条件化）：未注入任何字符串的方法maxStack必须保持原声明，
+     * 不能被无条件+3。
+     */
+    @Test
+    fun noComputeMaxs_plainMethod_maxStackUnchanged() {
+        val input = ClassWriter(0)
+        input.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "test/Target", null, "java/lang/Object", null)
+        run {
+            val mv = input.visitMethod(
+                Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC, "plain", "()I", null, null
+            )
+            mv.visitCode()
+            mv.visitInsn(Opcodes.ICONST_1)
+            mv.visitInsn(Opcodes.IRETURN)
+            mv.visitMaxs(1, 0)
+            mv.visitEnd()
+        }
+        input.visitEnd()
+
+        val outBytes = transformWithoutComputeMaxs(
+            input.toByteArray(), BytesMode.BYTES, dataSplitThreshold = 64
+        )
+        val classNode = ClassNode(Opcodes.ASM9)
+        ClassReader(outBytes).accept(classNode, 0)
+        val plain = classNode.methods.single { it.name == "plain" }
+        assertEquals("未注入字符串的方法maxStack不应被+3", 1, plain.maxStack)
+    }
+
+    /** 构造含values()数组返回方法的test/Target类字节 */
+    private fun buildTargetBytes(plainTexts: List<String>): ByteArray {
+        val input = ClassWriter(0)
+        input.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "test/Target", null, "java/lang/Object", null)
+        val mv = input.visitMethod(
+            Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC, "values", "()[Ljava/lang/String;", null, null
+        )
+        mv.visitCode()
+        pushInt(mv, plainTexts.size)
+        mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/String")
+        plainTexts.forEachIndexed { i, s ->
+            mv.visitInsn(Opcodes.DUP)
+            pushInt(mv, i)
+            mv.visitLdcInsn(s)
+            mv.visitInsn(Opcodes.AASTORE)
+        }
+        mv.visitInsn(Opcodes.ARETURN)
+        mv.visitMaxs(4, 1)
+        mv.visitEnd()
+        input.visitEnd()
+        return input.toByteArray()
+    }
+
     private fun emitEmptyByteArrayMethod(writer: ClassWriter, name: String) {
         val mv = writer.visitMethod(
             Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC, name, "()[B", null, null
@@ -583,7 +712,7 @@ class SplitGetterRegressionTest {
         return cw.toByteArray()
     }
 
-    private fun emitDecryptBody(mv: org.objectweb.asm.MethodVisitor, stringInput: Boolean) {
+    private fun emitDecryptBody(mv: MethodVisitor, stringInput: Boolean) {
         // DefaultEncodeImpl impl = new DefaultEncodeImpl();
         mv.visitTypeInsn(Opcodes.NEW, "com/android/string/plugin/demo_files/DefaultEncodeImpl")
         mv.visitInsn(Opcodes.DUP)
@@ -629,7 +758,7 @@ class SplitGetterRegressionTest {
         mv.visitInsn(Opcodes.ARETURN)
     }
 
-    private fun pushInt(mv: org.objectweb.asm.MethodVisitor, value: Int) {
+    private fun pushInt(mv: MethodVisitor, value: Int) {
         when (value) {
             in 0..5 -> mv.visitInsn(Opcodes.ICONST_0 + value)
             in Byte.MIN_VALUE..Byte.MAX_VALUE -> mv.visitIntInsn(Opcodes.BIPUSH, value)

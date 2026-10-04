@@ -29,6 +29,17 @@ abstract class StringDeferringMethodVisitor(
     private var ldcOrdinal: Int = 0
     private var nextLocal: Int = initialMaxLocals
 
+    /** 本方法是否真实注入过加密序列（决定visitMaxs是否追加栈余量） */
+    private var stackInjected = false
+
+    /**
+     * 子类在真实写入注入字节码后调用（skipReason==null 且走了 controller.write 加密路径时）。
+     * 静态final字段引用等不注入栈代码的路径不要调用。
+     */
+    protected fun markStackInjected() {
+        stackInjected = true
+    }
+
     // 暂存串是否处于 @KeepString 范围，在 LDC 时确定
     private var pendingKeep: Boolean = false
 
@@ -215,7 +226,10 @@ abstract class StringDeferringMethodVisitor(
         //  - STRING内联/split调用：getter结果+key+mode占3槽 → 净增2
         //  - concat重写：参数先存入局部变量、栈回基线；append的常量/参数LDC同样走
         //    flush替换路径，最坏净增3
-        super.visitMaxs(maxStack + MAX_STACK_HEADROOM, maxOf(maxLocals, nextLocal))
+        // 仅当本方法真实注入过加密序列（markStackInjected）时才加余量，
+        // 未注入字符串的方法（敏感API/keep范围/纯数值方法）不虚增maxStack。
+        val extra = if (stackInjected) MAX_STACK_HEADROOM else 0
+        super.visitMaxs(maxStack + extra, maxOf(maxLocals, nextLocal))
     }
 
     override fun visitEnd() {

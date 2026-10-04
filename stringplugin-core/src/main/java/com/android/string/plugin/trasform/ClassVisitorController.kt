@@ -242,7 +242,7 @@ class ClassVisitorController(
         // BYTES模式: 每个字节约6字节(DUP+index+value+BASTORE) + 数组创建 + key数组 + 调用
         // STRING模式: LDC引用常量池，字节码固定约15字节
         val estimatedSize = if (isBytesMode) {
-            (encryptedData as ByteArray).size * 6 + 120
+            (encryptedData as ByteArray).size * 7 + 120
         } else {
             15
         }
